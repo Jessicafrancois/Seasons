@@ -1,12 +1,35 @@
 const CACHE_PREFIX = 'seasons-pwa-';
-const CACHE_NAME = CACHE_PREFIX + 'v1';
+const CACHE_NAME = CACHE_PREFIX + 'v3';
 const HOME = '/';
 const STATIC_FILES = [
   '/manifest.webmanifest',
   '/register-pwa.js',
   '/icons/seasons-180.png',
   '/icons/seasons-192.png',
-  '/icons/seasons-512.png'
+  '/icons/seasons-512.png',
+  '/assets/fall/forest.jpeg',
+  '/assets/fall/profile-qr.png',
+  '/assets/fonts/dm-sans-400.woff2',
+  '/assets/fonts/dm-sans-500.woff2',
+  '/assets/fonts/dm-sans-600.woff2',
+  '/assets/fonts/dm-sans-700.woff2',
+  '/assets/fonts/italiana-400.woff2',
+  '/js/app.js',
+  '/js/components/page-head.js',
+  '/js/components/project-card.js',
+  '/js/components/season-hero.js',
+  '/js/components/track-list.js',
+  '/js/content/fall.js',
+  '/js/content/index.js',
+  '/js/pages/collection.js',
+  '/js/pages/home.js',
+  '/js/pages/inquiry.js',
+  '/js/pages/profile.js',
+  '/js/pages/project.js',
+  '/js/pages/seasons.js',
+  '/js/pages/track.js',
+  '/js/router.js',
+  '/styles/seasons.css'
 ];
 
 self.addEventListener('install', event => {

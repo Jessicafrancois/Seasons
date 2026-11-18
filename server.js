@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { resolve, sep, extname } from 'node:path';
 
 const root = resolve(import.meta.dirname, 'public');
-const types = { '.html': 'text/html; charset=utf-8', '.css': 'text/css', '.js': 'text/javascript', '.json': 'application/json', '.webp': 'image/webp', '.mp3': 'audio/mpeg', '.png': 'image/png', '.webmanifest': 'application/manifest+json' };
+const types = { '.html': 'text/html; charset=utf-8', '.css': 'text/css', '.js': 'text/javascript', '.json': 'application/json', '.webp': 'image/webp', '.mp3': 'audio/mpeg', '.png': 'image/png', '.jpeg': 'image/jpeg', '.woff2': 'font/woff2', '.webmanifest': 'application/manifest+json' };
 
 createServer(async (request, response) => {
   try {
@@ -14,9 +14,7 @@ createServer(async (request, response) => {
       response.writeHead(404).end();
       return;
     }
-    const content = path === '/content.json'
-      ? await readFile(new URL('./content.json', import.meta.url))
-      : await readFile(file);
+    const content = await readFile(file);
     const headers = { 'Content-Type': types[extname(file)] ?? 'application/octet-stream' };
     if (path === '/service-worker.js') headers['Cache-Control'] = 'no-cache';
     response.writeHead(200, headers).end(content);
