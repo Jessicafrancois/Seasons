@@ -1,4 +1,4 @@
-import { fall } from './fall.js';
+import { fall } from '../../seasons/fall/content.js';
 
 export const seasons = [fall];
 export const currentSeason = fall;

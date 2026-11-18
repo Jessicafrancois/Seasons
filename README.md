@@ -2,12 +2,12 @@
 
 Run `npm run dev` with Node.js 22 or later and open port 3000. Set `PORT` to use a different port.
 
-`public/index.html` is the shared shell. The Fall export's styling is in `public/styles/seasons.css`, with extracted fonts and imagery in `public/assets`. The hash router, page modules, shared components, and content modules are in `public/js`.
+`public/index.html` is the shared shell. The Fall export's styling is in `public/styles/seasons.css`, with shared fonts and profile artwork in `public/assets`. The hash router, page modules, and shared components are in `public/js`. Each season has a folder in `public/seasons/<slug>/` for its content module and bundled artwork.
 
 ## Add another season
 
-1. Add a module next to `public/js/content/fall.js` with a unique season slug, number, title, intro, themes, description, quote, cover, CTA labels, playlist URLs, projects, and tracks. Keep project IDs unique across seasons because projects use `/#/projects/<id>`.
-2. Put its artwork in `public/assets/<season-slug>/`. Import the new module in `public/js/content/index.js`, add it to the season list, and set `currentSeason` when it launches. The homepage shows the active season, the Seasons tab lists all chapters, and Explore can filter by season. New seasons use `/#/seasons/<slug>` and `/#/tracks/<slug>/<number>`. Fall's existing links are preserved.
+1. Create `public/seasons/<season-slug>/content.js` using `public/seasons/fall/content.js` as the example with a unique season slug, number, title, intro, themes, description, quote, cover, CTA labels, playlist URLs, projects, and tracks. Keep project IDs unique across seasons because projects use `/#/projects/<id>`.
+2. Put its bundled artwork in the same season folder. Import the new module in `public/js/content/index.js`, add it to the season list, and set `currentSeason` when it launches. The homepage shows the active season, the Seasons tab lists all chapters, and Explore can filter by season. New seasons use `/#/seasons/<slug>` and `/#/tracks/<slug>/<number>`. Fall's existing links are preserved.
 3. Add the new local module and assets to `STATIC_FILES` in `public/service-worker.js` and bump its cache version so the new season can open offline.
 
 The current content model uses one recording collection per season. Audio, Notion, and contact delivery are pending. The inquiry form downloads a brief locally.

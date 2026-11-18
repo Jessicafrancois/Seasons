@@ -1,5 +1,5 @@
 const CACHE_PREFIX = 'seasons-pwa-';
-const CACHE_NAME = CACHE_PREFIX + 'v3';
+const CACHE_NAME = CACHE_PREFIX + 'v4';
 const HOME = '/';
 const STATIC_FILES = [
   '/manifest.webmanifest',
@@ -7,8 +7,8 @@ const STATIC_FILES = [
   '/icons/seasons-180.png',
   '/icons/seasons-192.png',
   '/icons/seasons-512.png',
-  '/assets/fall/forest.jpeg',
-  '/assets/fall/profile-qr.png',
+  '/seasons/fall/forest.jpeg',
+  '/assets/profile/profile-qr.png',
   '/assets/fonts/dm-sans-400.woff2',
   '/assets/fonts/dm-sans-500.woff2',
   '/assets/fonts/dm-sans-600.woff2',
@@ -19,7 +19,7 @@ const STATIC_FILES = [
   '/js/components/project-card.js',
   '/js/components/season-hero.js',
   '/js/components/track-list.js',
-  '/js/content/fall.js',
+  '/seasons/fall/content.js',
   '/js/content/index.js',
   '/js/pages/collection.js',
   '/js/pages/home.js',

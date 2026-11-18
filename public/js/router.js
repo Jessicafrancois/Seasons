@@ -1,4 +1,4 @@
-import { fall } from './content/fall.js';
+import { fall } from '../seasons/fall/content.js';
 import { seasons } from './content/index.js';
 import { head } from './components/page-head.js';
 import { home } from './pages/home.js';
