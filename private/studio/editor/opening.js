@@ -25,10 +25,12 @@ export function renderEditor(root, serverDraft){
  const straighten=field('Straighten on zoom','checkbox',state.straightenOnZoom,v=>updateState('straightenOnZoom',v));controlPanel.append(straighten.wrap);
  const fill=field('Fill viewport','checkbox',state.fillViewport,v=>updateState('fillViewport',v));controlPanel.append(fill.wrap);
  function draw(){
-  tiles.style.transform='rotate('+state.rotation+'deg) scale('+(state.fillViewport?'1.15':'0.88')+')';
+  tiles.style.transform='rotate('+state.rotation+'deg) scale('+((state.fillViewport?1.22:.88)*state.tileSize/64)+')';
   tiles.style.gap=state.gap+'px';
-  tiles.style.gridTemplateColumns='repeat(10,minmax(0,'+state.tileSize+'px))';
-  for(const tile of tiles.children){const i=Number(tile.dataset.index);tile.style.background=i%6===0?'#5b6859':i%11===0?'#bba795':state.solidColor;tile.style.transitionDuration=state.duration+'ms';}
+  tiles.style.gridTemplateColumns='repeat(10,minmax(0,1fr))';
+  tiles.style.setProperty('--solid-tile-color',state.solidColor);
+  tiles.style.setProperty('--cycle',Math.max(3,state.duration/200*1.5)+'s');
+  for(const tile of tiles.children){const i=Number(tile.dataset.index);tile.style.setProperty('--tile-delay',(-((i*37)%70)/10)+'s');tile.style.setProperty('--photo-position',((i*17)%100)+'% '+((i*29)%100)+'%');tile.style.transitionDuration=state.duration+'ms';}
   for(const key of ['rotation','tileSize','gap','duration'])propertyInputs[key].textContent=String(state[key])+(key==='rotation'?'°':key==='duration'?' ms':' px');
  }
  async function save(){
