@@ -1,5 +1,5 @@
 const CACHE_PREFIX = 'seasons-pwa-';
-const CACHE_NAME = CACHE_PREFIX + 'v4';
+const CACHE_NAME = CACHE_PREFIX + 'v5';
 const HOME = '/';
 const STATIC_FILES = [
   '/manifest.webmanifest',
