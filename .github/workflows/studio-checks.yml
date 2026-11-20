@@ -1,0 +1,22 @@
+name: Seasons Studio checks
+on:
+  push:
+    branches:
+      - feature/seasons-studio-foundation
+  pull_request:
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check JavaScript syntax
+        run: |
+          node --check server.js
+          node --check server/studio-data.js
+          node --check server/studio-operations.js
+          node --check public/js/app.js
+      - name: Run Studio integration tests
+        run: npm test
