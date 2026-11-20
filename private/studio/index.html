@@ -24,21 +24,22 @@ function line(parent,value){const p=document.createElement('p');p.textContent=va
 async function load(){
 try{const res=await fetch('/studio/api/overview',{cache:'no-store'});if(!res.ok)throw Error('Service unavailable');const data=await res.json();
 document.getElementById('page-count').textContent=data.pageCount;
-document.getElementById('inventory-badge').textContent='Configured routes: '+data.pageCount;
-const pages=document.getElementById('pages-list');pages.replaceChildren();
+document.getElementById('inventory-status').textContent='Configured routes: '+data.pageCount;
+const pages=document.getElementById('live-pages');pages.replaceChildren();
 for(const category of ['Core','Season','Project','Track']){const arr=data.pages.filter(p=>p.category===category);if(arr.length)line(pages,category+': '+arr.length+' · '+arr.slice(0,4).map(p=>p.title).join(', '));}
 const tbody=document.getElementById('page-rows');data.pages.forEach(p=>row(tbody,[p.title,p.category,p.status]));document.getElementById('page-list-state').textContent=data.pageCount+' routes';
-document.getElementById('inquiry-list-status').textContent=data.operations.storageConnected?'Connected':'Not connected';
+document.getElementById('inbox-state').textContent=data.operations.storageConnected?'Connected':'Not connected';
 document.getElementById('alert-list-state').textContent=data.operations.storageConnected?'Connected':'Not connected';
 const inbox=document.getElementById('inbox-list'),alerts=document.getElementById('alert-list');inbox.replaceChildren();alerts.replaceChildren();
 if(data.operations.storageConnected){
+document.getElementById('live-operations').textContent='Inquiry and alert database connected. Recent records are available in the respective sections.';
 document.getElementById('inquiry-count').textContent=data.operations.inquiryCount;document.getElementById('inquiry-label').textContent=data.operations.inquiryCountScope;
 for(const i of data.operations.inquiries)line(inbox,i.inquiry_type+' · '+i.contact_name+' · '+i.status);
 for(const a of data.operations.alerts)line(alerts,a.severity+' · '+a.title+' · '+a.status);
 if(!data.operations.inquiries.length)line(inbox,'No inquiries recorded yet.');
 if(!data.operations.alerts.length)line(alerts,'No unresolved alert records. Monitoring is not yet automatic.');
-}else{line(inbox,'Connect a Supabase project to view private inquiries.');line(alerts,'Alert storage is not connected.');}
-}catch{for(const id of ['inbox-list','alert-list','pages-list'])document.getElementById(id).textContent='Studio data unavailable.';}
+}else{document.getElementById('live-operations').textContent='Inquiry and alert storage not connected.';line(inbox,'Connect a Supabase project to view private inquiries.');line(alerts,'Alert storage is not connected.');}
+}catch{for(const id of ['inbox-list','alert-list','live-pages'])document.getElementById(id).textContent='Studio data unavailable.';}
 }
 const grid=document.getElementById('grid-preview');for(let i=0;i<48;i++){const tile=document.createElement('div');tile.className='grid-tile';grid.append(tile);}
 function redraw(){const r=document.getElementById('grid-rotation').value,g=document.getElementById('grid-gap').value;grid.style.transform='rotate('+r+'deg) scale(.86)';grid.style.gap=g+'px';document.getElementById('grid-values').textContent='Rotation: '+r+'° · Gap: '+g+'px';}
