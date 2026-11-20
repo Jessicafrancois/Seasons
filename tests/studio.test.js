@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { setTimeout as delay } from 'node:timers/promises';
 import { pageInventory, overview } from '../server/studio-data.js';
+import { validateDraft } from '../server/studio-drafts.js';
 
 test('route inventory matches public content modules', () => {
  const routes=pageInventory();
@@ -33,13 +34,27 @@ test('protected Studio and inquiry integration fail closed', async () => {
   const studio=await fetch(base+'/studio/',{headers:{Authorization:auth}});
   assert.equal(studio.status,200);
   const html=await studio.text();
-  assert.match(html,/Page Inventory/);
-  assert.match(html,/Opening Grid/);
+  assert.match(html,/studio-nav/);
+  assert.match(html,/\/studio\/assets\/app\.js/);
   const response=await fetch(base+'/studio/api/overview',{headers:{Authorization:auth}});
   assert.equal(response.status,200);
   const data=await response.json();
   assert.equal(data.pageCount,14);
   assert.equal(data.operations.storageConnected,false);
+  const protectedJs=await fetch(base+'/studio/assets/app.js');
+  assert.equal(protectedJs.status,401);
+  const workingJs=await fetch(base+'/studio/assets/app.js',{headers:{Authorization:auth}});
+  assert.equal(workingJs.status,200);
+  assert.match(await workingJs.text(),/renderOverview/);
+  const css=await fetch(base+'/studio/assets/styles/studio.css',{headers:{Authorization:auth}});
+  assert.equal(css.status,200);
+  const forbidden=await fetch(base+'/studio/assets/data/opening-draft.json',{headers:{Authorization:auth}});
+  assert.equal(forbidden.status,404);
+  const draft=await fetch(base+'/studio/api/draft',{headers:{Authorization:auth}});
+  assert.equal(draft.status,200);
+  assert.equal((await draft.json()).enabled,false);
+  const deniedWrite=await fetch(base+'/studio/api/draft',{method:'PUT',headers:{Authorization:auth,'Content-Type':'application/json'},body:'{}'});
+  assert.equal(deniedWrite.status,403);
   const privateFile=await fetch(base+'/private/studio/index.html');
   assert.equal(privateFile.status,404);
   const missingStorage=await fetch(base+'/api/inquiries',{method:'POST',headers:{'Content-Type':'application/json',Origin:base},body:JSON.stringify({name:'Test',email:'test@example.com',type:'General inquiry',message:'A test inquiry message.'})});
@@ -49,4 +64,13 @@ test('protected Studio and inquiry integration fail closed', async () => {
   server.kill('SIGTERM');
   await new Promise(resolve=>server.once('exit',resolve));
  }
+});
+
+test('opening draft validation rejects unsafe or invalid data',()=>{
+ const sample={rotation:8,tileSize:64,gap:4,duration:900,mode:'independent',solidColor:'#A4A99B',straightenOnZoom:true,fillViewport:true};
+ assert.equal(validateDraft(sample).solidColor,'#a4a99b');
+ assert.throws(()=>validateDraft({...sample,gap:-1}));
+ assert.throws(()=>validateDraft({...sample,mode:'<script>'}));
+ assert.throws(()=>validateDraft({...sample,solidColor:'transparent;url(evil)'}));
+ assert.throws(()=>validateDraft({...sample,straightenOnZoom:'true'}));
 });
