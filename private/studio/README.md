@@ -1,36 +1,47 @@
-# Seasons Studio foundation (Stage 1)
+# Seasons Studio operations foundation (Stages 1–2)
 
-Branch: `feature/seasons-studio-foundation`.
+Branch: `feature/seasons-studio-foundation`. The branch is not deployed or merged.
 
-The existing public site and PWA remain unchanged. The private operational shell is served at `/studio/` from outside `public/`, so its source cannot be fetched by ordinary static-file URLs.
+## Local startup
 
-## Local preview
+With Node.js 22+, set local environment variables outside version control:
 
-Run Node.js 22+:
+- `STUDIO_USERNAME` and `STUDIO_PASSWORD` for temporary Basic authentication to `/studio/`.
+- `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` for live server-only inquiry and alert storage.
 
-```sh
-STUDIO_USERNAME=admin STUDIO_PASSWORD='replace-with-a-unique-long-secret' npm run dev
-```
+Run `npm run dev`, then visit `http://localhost:3000/studio/`. Without Studio credentials, the private route fails closed with HTTP 503. Without Supabase credentials, inquiry POST requests return HTTP 503 and the UI explicitly says they were not delivered.
 
-Open `http://localhost:3000/studio/` and enter the local credentials. Without both environment variables, Studio returns 503 and stays unavailable. Never put these values in the public folder, browser JavaScript, or Git history.
+Apply `database/20261120_seasons_studio_operations.sql` in the intended Supabase project before enabling credentials. The script creates restricted inquiry and alert tables. Do not put the service-role key in Git, any public file, or frontend JavaScript.
 
-In a hosted environment, **require HTTPS** before using HTTP Basic authentication. This is temporary single-owner scaffolding, not the final authentication system. Before deploying Studio publicly, replace Basic authentication with secure managed login, server-validated sessions, MFA, role-based authorization, CSRF protection for write actions, request throttling, audit logs, and short session lifetimes. Do not reuse the password on any other service.
+The published PWA must use HTTPS in production. **The Stage 1 Basic authentication is only temporary local scaffolding. Do not deploy the admin interface publicly with this authentication.** Replace it with a managed identity provider, MFA, server-verified short sessions, authorization, logout/revocation, request protections, and audit logs. Add dedicated abuse protection such as server-side CAPTCHA verification and persistent rate limiting before publicly enabling submission. The current rate limiter is per Node process only.
 
-## What is implemented
+## Implemented on branch
 
-- Separate private Studio URL and server-enforced authentication.
-- Editorial overview layout with navigation for all planned sections.
-- Explicit unavailable states, not invented visitor counts or alerts.
-- A public-site link.
-- No new dependencies and no changes to existing offline caching.
+- `GET /studio/api/overview`: protected, no-cache JSON containing the current route inventory, season metadata, and available operations records.
+- Route inventory derives from the same seasonal content modules used by the public router, including core pages, chapters, projects, and tracks. Its count means *configured routes*, not independently tested page health.
+- `POST /api/inquiries`: same-origin JSON intake, input validation, honeypot and process-local rate limit, with private Supabase insertion when configured.
+- Public inquiry form provides explicit successful/failed delivery messages. The original brief download is replaced on this branch.
+- Schema for `seasons_inquiries` and `seasons_alerts` with RLS and no public table access.
+- Studio Overview renders counts and recent records when connected; otherwise it reports the missing integration.
+- Public PWA cache version updated to v5.
 
-## Still to implement
+## Testing required before merge or deployment
 
-- Real page inventory from current route and season registries.
-- Inquiry intake and private inbox (current public form only downloads an unsent brief).
-- Database-backed alert records, analytics integration, and content-status reporting.
-- Notion synchronization and media storage.
-- Page editor, versioning, preview and publishing workflows.
-- Production-grade authentication and authorization.
+1. Run `node --check server.js`, `node --check server/studio-data.js`, `node --check server/studio-operations.js`, and `node --check public/js/app.js`.
+2. Confirm `/studio/` and `/studio/api/overview` are inaccessible without credentials, and that no files under `private/` can be reached as static assets.
+3. Confirm route inventory shows 14 configured routes for current Fall fixture (7 core + 1 season + 3 projects + 3 tracks). Future content can change this count.
+4. With storage unset, confirm inquiry submission returns 503 and the form does not claim success.
+5. On a nonproduction Supabase project with schema applied, send a test inquiry and verify one row is saved and visible only to the authenticated Studio API. Test malformed inputs and rate limits.
+6. Verify the published PWA still loads, navigates, and works offline after cache migration.
+7. Verify mobile layout, accessibility, and safe handling of user-submitted content.
 
-No inquiry forms, data storage, or publishing actions are active in this stage. Do not enter live personal inquiry data here.
+## Still pending
+
+- Production authentication, security review and deployment.
+- Full inquiry inbox with read, reply, assignment, notes and status workflows.
+- Real system health monitoring that produces alert rows. The alert table is only a foundation.
+- Notion synchronization and media integrations.
+- True analytics, draft management, page previews, editing and publishing.
+- Reliable global inquiry counts beyond the latest 25 records; summary currently labels this scope explicitly.
+
+No Supabase project has been connected by these code changes alone.
