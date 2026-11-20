@@ -23,7 +23,8 @@ async function db(path, options = {}) {
     signal: AbortSignal.timeout(10000)
   });
   if (!res.ok) throw new Error('Database request failed: ' + res.status);
-  return res.status === 204 ? null : res.json();
+  const body = await res.text();
+  return body ? JSON.parse(body) : null;
 }
 export async function operationalData() {
   if (!connected()) return { inquiryCount: null, inquiries: [], alerts: [], alertCount: null, storageConnected: false };
