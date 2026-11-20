@@ -7,16 +7,51 @@
 <div class="group">Operations</div><a class="navitem active" href="/studio/" aria-current="page">Overview</a><a class="navitem" aria-disabled="true" tabindex="-1">Inquiries</a><a class="navitem" aria-disabled="true" tabindex="-1">Alerts</a><a class="navitem" aria-disabled="true" tabindex="-1">Analytics</a>
 <div class="group">Creative management</div><a class="navitem" aria-disabled="true" tabindex="-1">Page Editor</a><a class="navitem" aria-disabled="true" tabindex="-1">Seasons Manager</a><a class="navitem" aria-disabled="true" tabindex="-1">Projects & Records</a><a class="navitem" aria-disabled="true" tabindex="-1">Media Library</a><a class="navitem" aria-disabled="true" tabindex="-1">Design System</a><a class="navitem" aria-disabled="true" tabindex="-1">Motion Studio</a>
 <div class="group">Platform</div><a class="navitem" aria-disabled="true" tabindex="-1">Publishing</a><a class="navitem" aria-disabled="true" tabindex="-1">Integrations</a><a class="navitem" aria-disabled="true" tabindex="-1">System & Security</a><a class="navitem" aria-disabled="true" tabindex="-1">Settings</a></nav></aside>
-<main><div class="top"><div><div class="eyebrow">SEASONS / STUDIO</div><h1>Overview</h1><p class="muted">Your entire creative platform, at a glance.</p></div><span class="pill">Stage 1 · Foundation</span></div>
+<main><div class="top"><div><div class="eyebrow">SEASONS / STUDIO</div><h1>Overview</h1><p class="muted">Your entire creative platform, at a glance.</p></div><span class="pill">Stage 2 · Operations</span></div>
 <section class="stats" aria-label="Platform metrics">
 <div class="card"><div class="stat-name">Visitors</div><div class="stat-number">—</div><div class="label">Analytics not connected</div></div>
-<div class="card"><div class="stat-name">Inquiries</div><div class="stat-number">—</div><div class="label">Inbox not connected</div></div>
-<div class="card"><div class="stat-name">Published Pages</div><div class="stat-number">—</div><div class="label">Inventory pending</div></div>
+<div class="card"><div class="stat-name">Inquiries</div><div class="stat-number" id="inquiry-count">—</div><div class="label" id="inquiry-label">Inbox not connected</div></div>
+<div class="card"><div class="stat-name">Published Pages</div><div class="stat-number" id="page-count">—</div><div class="label">Configured public routes</div></div>
 <div class="card"><div class="stat-name">Unpublished Drafts</div><div class="stat-number">—</div><div class="label">Editor pending</div></div>
 </section>
 <div class="columns"><section class="card"><div class="sectionhead"><h2>Attention required</h2><span class="pill">Not connected</span></div><div class="item"><strong>No live alerts available yet</strong><div class="muted">System alerts, inquiry follow-ups, media processing, and failed synchronization will appear here after their data sources are connected.</div></div></section>
 <section class="card"><div class="sectionhead"><h2>Page inventory</h2><span class="pill">Next milestone</span></div><div class="item"><strong>Opening & seasonal pages</strong><div class="muted">This section will read the PWA's published page registry and show status, drafts, and page health.</div></div><div class="item"><strong>Albums, tracks & projects</strong><div class="muted">Dynamic content will be included, not just static HTML routes.</div></div></section></div>
 <div class="columns"><section class="card"><div class="sectionhead"><h2>Inquiries</h2><span class="pill">Awaiting integration</span></div><p class="muted">The public site's current inquiry interaction downloads an unsent brief. No messages are collected by Studio yet. We will introduce secure form submissions and a private inbox.</p></section>
 <section class="card"><div class="sectionhead"><h2>Season activity</h2><span class="pill">Season 1 / Fall</span></div><p class="muted">The current public content is stored in local season modules. Future Studio releases will synchronize approved editorial content from Notion and preserve seasonal archive-access rules.</p></section></div>
-<div class="footer">This is a protected Stage 1 shell. All unavailable metrics display an em dash rather than fabricated values. <a href="/">View public Seasons site</a>.</div>
-</main></div></body></html>
+<section class="card" style="margin-top:20px"><div class="sectionhead"><h2>Live route inventory</h2><span class="pill" id="inventory-status">Checking</span></div><div id="live-pages" aria-live="polite"><p class="muted">Reading public content modules…</p></div></section><section class="card" style="margin-top:20px"><div class="sectionhead"><h2>Operations connection</h2></div><div id="live-operations"><p class="muted">Checking inquiry and alert storage…</p></div></section><div class="footer">This is a protected Stage 1 shell. All unavailable metrics display an em dash rather than fabricated values. <a href="/">View public Seasons site</a>.</div>
+</main></div><script>
+function paragraph(parent, value) {
+  const p=document.createElement('p');
+  p.className='muted';p.textContent=value;parent.append(p);
+}
+async function loadStudio() {
+ try {
+  const response=await fetch('/studio/api/overview',{cache:'no-store'});
+  if(!response.ok) throw new Error('Unavailable');
+  const data=await response.json();
+  document.getElementById('page-count').textContent=String(data.pageCount);
+  document.getElementById('inventory-status').textContent='From content modules';
+  const node=document.getElementById('live-pages');node.replaceChildren();
+  for(const category of ['Core','Season','Project','Track']){
+   const matches=data.pages.filter(p=>p.category===category);
+   if(!matches.length) continue;
+   const title=document.createElement('strong');
+   title.textContent=category+' · '+matches.length; node.append(title);
+   paragraph(node,matches.map(p=>p.title).join(' · '));
+  }
+  const op=document.getElementById('live-operations');op.replaceChildren();
+  if(data.operations.storageConnected){
+   document.getElementById('inquiry-count').textContent=String(data.operations.inquiryCount);
+   document.getElementById('inquiry-label').textContent=data.operations.inquiryCountScope;
+   paragraph(op,'Inquiry and alert storage connected. Latest inquiries: '+data.operations.inquiries.length+'. Latest unresolved alerts: '+data.operations.alerts.length+'.');
+   for(const item of data.operations.inquiries.slice(0,5)) paragraph(op,item.inquiry_type+' · '+item.status+' · '+item.contact_name);
+   for(const item of data.operations.alerts.slice(0,5)) paragraph(op,'Alert: '+item.severity+' · '+item.title);
+  }else paragraph(op,'Inquiry and alert storage not connected. No live submissions or technical monitoring yet.');
+ }catch{
+  document.getElementById('inventory-status').textContent='Unavailable';
+  document.getElementById('live-pages').textContent='Could not load page inventory.';
+  document.getElementById('live-operations').textContent='Could not retrieve operational status.';
+ }
+}
+loadStudio();
+</script></body></html>
