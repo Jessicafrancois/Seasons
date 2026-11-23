@@ -85,3 +85,12 @@
 .integration-modal-result{font-size:12px;color:#53644f;min-height:16px}
 @media(max-width:1050px){.integration-tiles{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:500px){.integration-tiles{grid-template-columns:1fr}.integration-tile{min-height:140px}.integration-modal h2{font-size:29px}}
+
+
+/* Secure founder credential form inside provider permission dialog. */
+.integration-credential-form{display:grid;gap:12px;padding:16px;border:1px solid #dce5db;border-radius:12px;background:#f5f7f3;margin:16px 0}
+.integration-credential-field{display:grid;gap:7px;font-size:12px;font-weight:600;color:#4b5a4c}
+.integration-credential-field input{width:100%;border:1px solid #cdd7cb;background:#fffefa;color:#233228;border-radius:8px;padding:12px;font:12px/1.4 ui-monospace,SFMono-Regular,Consolas,monospace}
+.integration-credential-form .button{justify-self:start}
+.integration-credential-form input:focus-visible{outline:2px solid #477452;outline-offset:2px}
+#studio-logout[hidden]{display:none}
