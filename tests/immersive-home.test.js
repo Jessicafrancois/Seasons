@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {home} from '../public/js/pages/home.js';
+import {publicDocument} from '../server/public-document.js';
 
 test('public homepage keeps current season, its artwork and the chapter route',()=>{
  const result=home();
@@ -14,7 +15,8 @@ test('public homepage keeps current season, its artwork and the chapter route',(
 });
 test('immersive design is scoped to home route and stylesheet is linked',async()=>{
  const read=p=>readFile(new URL('../'+p,import.meta.url),'utf8');
- const [index,app,style]=await Promise.all([read('public/index.html'),read('public/js/app.js'),read('public/styles/home-editorial.css')]);
+ const [app,style]=await Promise.all([read('public/js/app.js'),read('public/styles/home-editorial.css')]);
+ const index=publicDocument();
  assert.match(index,/\/styles\/home-editorial\.css/);
  assert.match(app,/classList\.toggle\('home-page',page==='home'\)/);
  assert.match(style,/body\.home-page>header/);
@@ -26,4 +28,11 @@ test('PWA activates fresh homepage assets rather than stale cached modules',asyn
  assert.match(sw,/CACHE_PREFIX \+ 'v6'/);
  assert.match(sw,/\/styles\/home-editorial\.css/);
  assert.match(sw,/\/js\/pages\/home\.js/);
+});
+
+test('public document is emitted by server code, rather than an HTML file',async()=>{
+ const server=await readFile(new URL('../server.js',import.meta.url),'utf8');
+ assert.match(server,/publicDocument\(\)/);
+ assert.doesNotMatch(server,/page \? '\/index\.html'/);
+ assert.match(publicDocument(), /<main id="app"><\/main>/);
 });
