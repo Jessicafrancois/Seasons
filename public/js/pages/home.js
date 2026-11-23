@@ -3,7 +3,27 @@ import { grid } from '../components/project-card.js';
 import { currentSeason, projects } from '../content/index.js';
 
 export function featured(season) {
-  return `<section class="section"><div class="section-head"><div><div class="eyebrow">${season.number} / Selected explorations</div><h2>Work in becoming.</h2></div><a class="text-link" href="#/explore">Explore all work ↗</a></div>${grid(projects.filter(project => project.season === season))}</section>`;
+  const items = projects.filter(project => project.season === season).slice(0,3);
+  const tiles = items.map((project,index) => {
+    const category = ['Recordings','Visual studies','Writing & reflection'][index];
+    return `<a class="home-feature-tile home-feature-tile--${index+1}" href="#/projects/${project.id}" style="--tile-art: url('${season.cover}')">
+      <span class="home-feature-tile-art" aria-hidden="true"></span>
+      <span class="home-feature-tile-shade" aria-hidden="true"></span>
+      <span class="home-feature-tile-label">${category}</span>
+      <span class="home-feature-tile-title">${project.title}</span>
+      <span class="home-feature-tile-arrow" aria-hidden="true">↗</span>
+    </a>`;
+  });
+  tiles.push(`<a class="home-feature-tile home-feature-tile--4" href="#/seasons/${season.slug}" style="--tile-art: url('${season.cover}')">
+    <span class="home-feature-tile-art" aria-hidden="true"></span>
+    <span class="home-feature-tile-shade" aria-hidden="true"></span>
+    <span class="home-feature-tile-label">The chapter</span>
+    <span class="home-feature-tile-title">Season ${season.number} ~ ${season.title}</span>
+    <span class="home-feature-tile-arrow" aria-hidden="true">↗</span>
+  </a>`);
+  return `<section class="home-feature-section" aria-label="Explore four paths through the current season">
+    <div class="home-feature-grid">${tiles.join('')}</div>
+  </section>`;
 }
 
 /**
