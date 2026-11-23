@@ -37,7 +37,7 @@ function validOrigin(request) {
   if (!source || !host) return false;
   try {
     const u = new URL(source);
-    return ['https:', 'http:'].includes(u.protocol) && u.host === host;
+    return ['https:', 'http:'].includes(u.protocol) && (process.env.NODE_ENV !== 'production' || u.protocol === 'https:') && u.host === host;
   } catch { return false; }
 }
 function reply(response, status, body) {
@@ -79,7 +79,7 @@ export async function studioIdentity(request) {
     headers: { Authorization:'Bearer ' + token }
   });
   const user = response.body;
-  if (!response.ok || !user?.id || !user?.email_confirmed_at) return null;
+  if (!response.ok || !user?.id || !user?.email_confirmed_at || user?.is_anonymous === true) return null;
   // A genuine Auth user is not automatically a Studio member.
   const memberResponse = await fetch(origin() +
     '/rest/v1/seasons_studio_members?select=user_id,role,confidentiality_clearance,is_active&user_id=eq.' +
