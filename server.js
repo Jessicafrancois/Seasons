@@ -78,6 +78,15 @@ createServer(async(request,response)=>{
     try{return json(response,200,await saveDraft(await readJson(request)))}
     catch(error){return json(response,error.status|| (error.message.startsWith('Invalid')?422:503),{error:error.message.startsWith('Invalid')?error.message:'Local draft storage unavailable.'})}
    }
+   if(path==='/studio/api/centers'||/^\/studio\/api\/(inquiries|opportunities)\/[a-f0-9-]+$/i.test(path)){
+    if(request.method!=='GET')return json(response,405,{error:'Method not allowed.'});
+    try{
+     if(path==='/studio/api/centers')return json(response,200,await centerLists());
+     const match=path.match(/^\/studio\/api\/(inquiries|opportunities)\/([a-f0-9-]+)$/i);
+     const record=match[1]==='inquiries'?await inquiryDetails(match[2]):await opportunityDetails(match[2]);
+     return record?json(response,200,record):json(response,404,{error:'Record not found.'});
+    }catch{return json(response,503,{error:'Studio records temporarily unavailable.'})}
+   }
    if(request.method!=='GET')return json(response,405,{error:'Method not allowed.'});
    const asset=path.startsWith('/studio/assets/')?path.slice('/studio/assets'.length):null;
    if(asset!==null&&!studioAssets.has(asset))return json(response,404,{error:'Not found.'});
@@ -91,7 +100,11 @@ createServer(async(request,response)=>{
   }
   if(path.startsWith('/api/')||request.method!=='GET')return response.writeHead(404).end('Page unavailable');
   const page=path==='/'||/^\/projects\/[a-z0-9-]+\/?$/.test(path);
-  const file=resolve(root,'.'+(page?'/index.html':path));
+  if(page){
+   response.writeHead(200,{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-cache','X-Content-Type-Options':'nosniff'}).end(publicDocument());
+   return;
+  }
+  const file=resolve(root,'.'+path);
   if(!file.startsWith(root+sep))return response.writeHead(404).end();
   const body=await readFile(file);
   const headers={'Content-Type':types[extname(file)]??'application/octet-stream'};
