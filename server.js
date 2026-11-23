@@ -68,6 +68,8 @@ createServer(async(request,response)=>{
  try{
   const path=decodeURIComponent(new URL(request.url,'http://localhost').pathname);
   if(path==='/api/inquiries'&&request.method==='POST')return await submitInquiry(request,response);
+  if(/^\/api\/studio\/openings\/[a-z]+$/.test(path)&&studioAuthMode()==='secure')
+   return json(response,403,{error:'Legacy opening editor is disabled under individual Studio authentication.'});
   if(/^\/api\/(?:studio\/)?openings\/[a-z]+$/.test(path))return await openingApi(request,response,path);
   if((path==='/studio/login'||path==='/studio/login.js')&&request.method==='GET'){
    if(studioAuthMode()!=='secure')return response.writeHead(302,{Location:'/studio/'}).end();
