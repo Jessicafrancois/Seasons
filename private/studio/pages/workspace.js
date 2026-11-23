@@ -170,7 +170,10 @@ export function renderIntegrations(root,data,inventory,session,vault,onUpdated){
    });
    buttons.append(connect);
   }else{
-   instruction.append(note('Account authorization is not yet enabled for this provider in this Studio environment. Configure the required application settings below.'));
+   const method=['supabase','email','apple-music','analytics'].includes(id)
+    ? 'This service uses API credentials rather than an account-consent redirect. With secure founder sign-in, enter the credentials in the protected form below.'
+    : 'Account authorization is not enabled yet. Configure the provider application and secure server settings below.';
+   instruction.append(note(method));
   }
   if(cfg){
    instruction.append(el('h3','Connection settings'));
