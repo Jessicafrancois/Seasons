@@ -7,6 +7,8 @@ import { publicDocument } from './server/public-document.js';
 import { operationalData, submitInquiry } from './server/studio-operations.js';
 import { centerLists, inquiryDetails, opportunityDetails } from './server/studio-centers.js';
 import { readDraft, saveDraft } from './server/studio-drafts.js';
+import { studioAuthMode, studioIdentity, studioLogin, studioLogout } from './server/studio-auth.js';
+import { studioCan, studioCanSeeRecord } from './server/studio-permissions.js';
 
 const root=resolve(import.meta.dirname,'public');
 const studioRoot=resolve(import.meta.dirname,'private/studio');
@@ -63,16 +65,53 @@ createServer(async(request,response)=>{
   const path=decodeURIComponent(new URL(request.url,'http://localhost').pathname);
   if(path==='/api/inquiries'&&request.method==='POST')return await submitInquiry(request,response);
   if(path==='/studio'||path==='/studio/'||path.startsWith('/studio/')){
-   if(!protect(request,response))return;
+   const mode=studioAuthMode();
+   if(mode==='supabase' && (path==='/studio/login'||path==='/studio/login.js') && request.method==='GET'){
+    response.setHeader('Cache-Control','no-store');
+    response.setHeader('X-Content-Type-Options','nosniff');
+    response.setHeader('Referrer-Policy','no-referrer');
+    response.setHeader('Content-Security-Policy',"default-src 'none'; connect-src 'self'; script-src 'self'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'");
+    const loginFile=resolve(studioRoot,path.endsWith('.js')?'login.js':'login.html');
+    response.writeHead(200,{'Content-Type':types[extname(loginFile)]}).end(await readFile(loginFile));
+    return;
+   }
+   if(path==='/studio/auth/login' && request.method==='POST' && mode==='supabase')
+    return await studioLogin(request,response);
+   if(path==='/studio/auth/logout' && request.method==='POST' && mode==='supabase')
+    return await studioLogout(request,response);
+   let identity=null;
+   if(mode==='supabase'){
+    identity=await studioIdentity(request);
+    if(!identity){
+     if((path==='/studio'||path==='/studio/') && request.method==='GET'){
+      response.writeHead(303,{'Location':'/studio/login','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}).end();
+      return;
+     }
+     return json(response,401,{error:'Studio sign-in required.'});
+    }
+   }else if(mode==='local-basic'){
+    if(!protect(request,response))return;
+   }else return json(response,503,{error:'Studio access is not configured.'});
+   if(path==='/studio/api/session' && request.method==='GET')
+    return json(response,200,{authenticated:true,mode,role:identity?.member.role||'Local Development',clearance:identity?.member.confidentiality_clearance||null});
    if(path==='/studio/api/overview'&&request.method==='GET'){
-    try{return json(response,200,{...overview(),operations:await operationalData()})}
+    try{
+     const operations=await operationalData();
+     if(identity){
+      operations.inquiries=operations.inquiries.filter(record=>studioCanSeeRecord(identity.member,'inquiries.read',record));
+      operations.inquiryCount=operations.inquiries.filter(record=>record.status==='new').length;
+     }
+     return json(response,200,{...overview(),operations});
+    }
     catch{return json(response,503,{error:'Operations data temporarily unavailable.'})}
    }
    if(path==='/studio/api/draft'&&request.method==='GET'){
+    if(identity&&!studioCan(identity.member,'editor.manage'))return json(response,403,{error:'Permission denied'});
     try{return json(response,200,await readDraft())}
     catch{return json(response,503,{error:'Draft data unavailable.'})}
    }
    if(path==='/studio/api/draft'&&request.method==='PUT'){
+    if(identity&&!studioCan(identity.member,'editor.manage'))return json(response,403,{error:'Permission denied'});
     if(!sameOrigin(request)||request.headers['x-seasons-studio']!=='draft-editor')return json(response,403,{error:'Write request denied.'});
     if(!String(request.headers['content-type']||'').startsWith('application/json'))return json(response,415,{error:'Expected JSON.'});
     try{return json(response,200,await saveDraft(await readJson(request)))}
@@ -81,10 +120,22 @@ createServer(async(request,response)=>{
    if(path==='/studio/api/centers'||/^\/studio\/api\/(inquiries|opportunities)\/[a-f0-9-]+$/i.test(path)){
     if(request.method!=='GET')return json(response,405,{error:'Method not allowed.'});
     try{
-     if(path==='/studio/api/centers')return json(response,200,await centerLists());
+     if(path==='/studio/api/centers'){
+      const data=await centerLists();
+      if(identity){
+       data.inquiries=data.inquiries.filter(item=>studioCanSeeRecord(identity.member,'inquiries.read',item));
+       data.opportunities=data.opportunities.filter(item=>studioCanSeeRecord(identity.member,'opportunities.read',item));
+       data.counts={recentInquiries:data.inquiries.length,recentOpportunities:data.opportunities.length};
+      }
+      return json(response,200,data);
+     }
      const match=path.match(/^\/studio\/api\/(inquiries|opportunities)\/([a-f0-9-]+)$/i);
      const record=match[1]==='inquiries'?await inquiryDetails(match[2]):await opportunityDetails(match[2]);
-     return record?json(response,200,record):json(response,404,{error:'Record not found.'});
+     if(!record)return json(response,404,{error:'Record not found.'});
+     const item=match[1]==='inquiries'?record.inquiry:record.opportunity;
+     if(identity&&!studioCanSeeRecord(identity.member,match[1]==='inquiries'?'inquiries.read':'opportunities.read',item))
+      return json(response,404,{error:'Record not found.'});
+     return json(response,200,record);
     }catch{return json(response,503,{error:'Studio records temporarily unavailable.'})}
    }
    if(request.method!=='GET')return json(response,405,{error:'Method not allowed.'});
