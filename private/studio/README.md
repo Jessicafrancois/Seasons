@@ -93,3 +93,33 @@ Supported tests:
 **Security boundary:** The existing shared Basic authorization in Studio is still for trusted local testing. Because full production sessions, MFA, CSRF hardening, and key rotation have not been completed, this build deliberately does **not** accept token/secret values in a Studio browser form. Once those prerequisites are ready, we can implement an encrypted credential vault and provider OAuth connection flows. Do not expose a public administrator site behind a shared Basic password.
 
 A successful test establishes only that a particular provider's credential-level endpoint responded, not that data synchronization, email delivery, publishing, or licensing is live.
+
+## Click-to-authorize account connections (November 23, 2026)
+
+The Integrations screen is now a clickable service directory. Select any service to open a permission review dialog. Notion and Spotify support a real provider-hosted authorization flow when explicitly configured. Other providers explain their developer-key or product-specific setup instead of presenting an imitation OAuth screen.
+
+**Server-side encrypted OAuth vault**: `database/20261123_studio_oauth_connections.sql` (applied to the connected Seasons Supabase project). The table is RLS protected with no anon/authenticated access; only the trusted server stores AES-256-GCM-encrypted tokens. The encryption key is never stored in Supabase.
+
+**Required settings for opt-in Codespace development only:**
+
+```text
+STUDIO_OAUTH_ENABLED=true
+STUDIO_OAUTH_ORIGIN=https://YOUR-CODESPACE-FORWARDED-PORT-3000-URL
+STUDIO_OAUTH_ENCRYPTION_KEY=<64 random hex characters>
+SUPABASE_URL=<your existing Seasons Supabase URL>
+SUPABASE_SERVICE_ROLE_KEY=<server-only key>
+NOTION_OAUTH_CLIENT_ID=<public Notion integration client ID>
+NOTION_OAUTH_CLIENT_SECRET=<server-only Notion client secret>
+SPOTIFY_CLIENT_ID=<Spotify developer application client ID>
+SPOTIFY_CLIENT_SECRET=<server-only Spotify client secret>
+```
+
+Configure **the exact callback URI** `<STUDIO_OAUTH_ORIGIN>/studio/oauth/callback` in both providers' application dashboards before testing. The origin must match the current Codespace forwarded HTTPS address. Generating a new Codespace URL requires updating the provider's allowlisted redirect URL and `STUDIO_OAUTH_ORIGIN`.
+
+For Notion: create a **public** Notion integration with the required capabilities and provide only the pages/databases you select. The provider's consent screen determines the final access. For Spotify: only the `user-read-private` scope is requested; nothing is added to a library or playlist.
+
+Click **Continue to Notion** or **Continue to Spotify** from the permission dialog. On success, Studio stores encrypted access/refresh tokens and displays the account's connection status. The **Disconnect from Studio** action removes stored tokens, but does not revoke the grant at the provider; use the provider's connected-app settings for complete revocation.
+
+**Safety:** `STUDIO_OAUTH_ENABLED` is ineffective in `NODE_ENV=production` while Studio uses shared Basic authentication. The complete production access upgrade (individual Supabase Auth login, MFA, hardened sessions and CSRF/security review) must precede activation of OAuth in a public-facing administrative Studio. The UI may be viewed on the deployed site, but it will explain that real account authorization needs configuration or the secure login upgrade.
+
+Provider authentication success does not synchronize Notion content or publish a release. Those remain separate, explicit workflows. The server does not return raw OAuth tokens to the browser.
