@@ -11,7 +11,7 @@ function baseUrl() {
   if (url.protocol !== 'https:') throw new Error('Secure Supabase URL required');
   return url.origin;
 }
-async function db(path, options = {}) {
+export async function db(path, options = {}) {
   const res = await fetch(baseUrl() + '/rest/v1/' + path, {
     ...options,
     headers: {
