@@ -7,8 +7,8 @@ import {setTimeout as delay} from 'node:timers/promises';
 test('Vercel configuration routes dynamic pages and bundles private Studio assets',async()=>{
  const config=JSON.parse(await readFile(new URL('../vercel.json',import.meta.url),'utf8'));
  assert.equal(config.version,2);
- assert.ok(config.functions['api/index.js'].includeFiles.includes('private/studio/**'));
- assert.ok(config.functions['api/index.js'].includeFiles.includes('public/**'));
+ assert.match(config.functions['api/index.js'].includeFiles,/private\/studio\/\*\*/);
+ assert.match(config.functions['api/index.js'].includeFiles,/public\/\*\*/);
  assert.ok(config.rewrites.some(x=>x.source==='/(.*)'&&x.destination==='/api/index'));
  const entry=await readFile(new URL('../api/index.js',import.meta.url),'utf8');
  assert.match(entry,/handleRequest/);
