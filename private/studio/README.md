@@ -186,3 +186,5 @@ Review MFA account recovery; rate limiting that is shared across all server inst
 ### Check setup before enabling secure mode
 
 Run `npm run studio:preflight` in the Codespace after its secrets are loaded. It prints only variable names and OK/MISSING indicators, not secret values. Fix any missing settings before opening `/studio/login`. Passing preflight does **not** confirm MFA enrollment, database membership, provider authorization, session revocation, deployment safety, or full integration tests. The public Vercel site may be on a separate runtime from your Codespace and requires its own secrets and deployment checks.
+
+The legacy shared-secret endpoint `/api/studio/openings/*` is intentionally disabled whenever `STUDIO_AUTH_MODE=secure`. The modern protected Studio editor must be migrated to individual authorization before remote Notion edits are re-enabled. Public read-only opening settings are unaffected.
