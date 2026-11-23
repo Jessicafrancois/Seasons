@@ -15,6 +15,7 @@ test('production Studio defaults disabled and requires Supabase plus cryptograph
   process.env.SUPABASE_URL='https://example.supabase.co';
   process.env.SUPABASE_SERVICE_ROLE_KEY='test-server-only';
   process.env.SUPABASE_PUBLISHABLE_KEY='test-public';
+  process.env.STUDIO_PUBLIC_ORIGIN='https://studio.example.test';
   assert.equal(secureModeConfigured(),true);
  });
 });
