@@ -11,7 +11,7 @@ const CLEARANCES = Object.freeze({ Standard:0, Restricted:1, 'Founder Private':2
 const ACTIONS_SET = new Set(Object.values(ACTIONS).flat());
 
 export function studioCan(member, action, classification='Standard') {
- if (!member || member.is_active !== true || !ACTIONS_SET.has(action)) return false;
+ if (!studioMembershipValid(member) || !ACTIONS_SET.has(action)) return false;
  const permitted = ACTIONS[member.role];
  if (!permitted?.includes(action)) return false;
  const level = CLEARANCES[classification];
