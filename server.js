@@ -9,7 +9,7 @@ import { readDraft, saveDraft } from './server/studio-drafts.js';
 const root=resolve(import.meta.dirname,'public');
 const studioRoot=resolve(import.meta.dirname,'private/studio');
 const types={'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.json':'application/json; charset=utf-8','.webp':'image/webp','.mp3':'audio/mpeg','.png':'image/png','.jpeg':'image/jpeg','.woff2':'font/woff2','.webmanifest':'application/manifest+json'};
-const studioAssets=new Set(['/app.js','/components/ui.js','/pages/workspace.js','/pages/inquiry-center.js','/editor/opening.js','/styles/studio.css']);
+const studioAssets=new Set(['/app.js','/components/ui.js','/pages/workspace.js','/pages/inquiry-center.js','/pages/opportunities.js','/editor/opening.js','/styles/studio.css','/styles/opportunities.css']);
 
 function constantEquals(left,right){
  const a=Buffer.from(left),b=Buffer.from(right);
