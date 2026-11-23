@@ -99,7 +99,7 @@ test('verified invited founder receives opaque revocable session only after Supa
    if(url.includes('seasons_studio_members'))return reply([member]);
    if(url.includes('seasons_studio_sessions')&&init.method==='POST'){saved=JSON.parse(init.body);return reply(null)}
    if(url.includes('seasons_studio_sessions')&&init.method==='PATCH')return reply(null);
-   if(url.includes('seasons_studio_sessions')&&init.method==='GET')return reply([{
+   if(url.includes('seasons_studio_sessions')&&(!init.method||init.method==='GET'))return reply([{
     session_hash:saved.session_hash,user_id:userId,csrf_hash:saved.csrf_hash,
     mfa_verified_at:saved.mfa_verified_at,idle_expires_at:saved.idle_expires_at,
     absolute_expires_at:saved.absolute_expires_at,revoked_at:null
