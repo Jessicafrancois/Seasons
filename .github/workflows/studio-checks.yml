@@ -22,6 +22,10 @@ jobs:
           node --check server/studio-centers.js
           node --check server/studio-integrations.js
           node --check server/studio-oauth.js
+          node --check server/studio-secure-auth.js
+          node --check server/studio-vault.js
+          node --check private/studio/login.js
+          node --check private/studio/pages/credential-setup.js
           node --check server/public-document.js
           node --check opening-api.js
           node --check server/studio-drafts.js
