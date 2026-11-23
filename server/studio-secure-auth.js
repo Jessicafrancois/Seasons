@@ -2,7 +2,6 @@ import {createHash,createHmac,randomBytes,timingSafeEqual} from 'node:crypto';
 import {studioCan,studioMembershipValid} from './studio-permissions.js';
 
 const COOKIE='seasons_studio_sid';
-const LOGIN_ATTEMPTS=new Map();
 const IDLE_MS=30*60*1000,ABS_MS=8*60*60*1000;
 const digest=value=>createHash('sha256').update(value).digest('hex');
 const constant=(a,b)=>typeof a==='string'&&typeof b==='string'&&a.length===b.length&&timingSafeEqual(Buffer.from(a),Buffer.from(b));
@@ -42,6 +41,25 @@ async function supabase(path,init={},service=false){
  return body;
 }
 async function table(path,init={}){return supabase('/rest/v1/'+path,init,true)}
+
+async function sharedThrottle(request,purpose,limit){
+ // Never store raw IPs or account identifiers in Postgres. The identifier
+ // is HMACed with a server-only key and has a purpose-specific namespace.
+ const peer=request.socket?.remoteAddress||'unknown';
+ const key=createHmac('sha256',Buffer.from(process.env.STUDIO_SESSION_CSRF_KEY,'hex'))
+  .update('studio-auth:'+purpose+':'+peer).digest('hex');
+ try{
+  return await supabase('/rest/v1/rpc/seasons_studio_auth_limit_check',{
+   method:'POST',body:JSON.stringify({
+    p_identifier_hash:key,p_max_attempts:limit,p_window_seconds:900
+   })
+  },true)===true;
+ }catch{
+  // A disconnected rate limiter must never turn into unlimited login attempts.
+  return false;
+ }
+}
+
 async function body(request){
  if(!String(request.headers['content-type']||'').startsWith('application/json'))throw Error('Expected JSON');
  let text='';for await(const chunk of request){text+=chunk.toString('utf8');if(Buffer.byteLength(text)>5000)throw Error('Request too large')}
@@ -70,8 +88,7 @@ export async function secureLogin(request,response){
  if(!secureModeConfigured())return send(response,503,{error:'Individual Studio authentication is not configured'});
  if(!trustedOrigin(request))return send(response,403,{error:'Origin denied'});
  const ip=request.socket?.remoteAddress||'unknown',now=Date.now();
- const attempts=(LOGIN_ATTEMPTS.get(ip)||[]).filter(t=>now-t<15*60*1000);
- if(attempts.length>=6)return send(response,429,{error:'Too many attempts'});
+ if(!(await sharedThrottle(request,'login',6)))return send(response,429,{error:'Sign-in temporarily unavailable or rate limited'});
  try{
   const form=await body(request);
   const email=String(form?.email||'').trim(),password=String(form?.password||''),code=String(form?.code||'');
@@ -105,22 +122,10 @@ export async function secureLogin(request,response){
     mfa_verified_at:time.toISOString(),last_seen_at:time.toISOString(),
     idle_expires_at:new Date(now+IDLE_MS).toISOString(),absolute_expires_at:new Date(now+ABS_MS).toISOString()})
   });
-  LOGIN_ATTEMPTS.delete(ip);
   send(response,200,{ok:true,role:member.role},{'Set-Cookie':cookie(sid,Math.ceil(ABS_MS/1000))});
  }catch{
-  attempts.push(now);LOGIN_ATTEMPTS.set(ip,attempts);
-  if(LOGIN_ATTEMPTS.size>10000)LOGIN_ATTEMPTS.clear();
   send(response,401,{error:'Sign-in denied. Confirm your invitation, verified email, and six-digit authenticator code.'});
  }
-}
-const ENROLL_ATTEMPTS=new Map();
-function enrollAllowed(request){
- const ip=request.socket?.remoteAddress||'unknown',now=Date.now();
- const list=(ENROLL_ATTEMPTS.get(ip)||[]).filter(t=>now-t<15*60*1000);
- if(list.length>=5)return false;
- list.push(now);ENROLL_ATTEMPTS.set(ip,list);
- if(ENROLL_ATTEMPTS.size>10000)ENROLL_ATTEMPTS.clear();
- return true;
 }
 async function verifiedInvitedUser(request){
  const form=await body(request);
@@ -136,7 +141,7 @@ async function verifiedInvitedUser(request){
 export async function secureEnroll(request,response){
  if(!secureModeConfigured())return send(response,503,{error:'Secure Studio is not configured'});
  if(!trustedOrigin(request))return send(response,403,{error:'Origin denied'});
- if(!enrollAllowed(request))return send(response,429,{error:'Too many attempts'});
+ if(!(await sharedThrottle(request,'enrollment',5)))return send(response,429,{error:'Setup temporarily unavailable or rate limited'});
  try{
   const {token,user}=await verifiedInvitedUser(request);
   if(user.factors?.some(f=>f.factor_type==='totp'&&f.status==='verified'))throw Error('Already enrolled');
@@ -152,7 +157,7 @@ export async function secureEnroll(request,response){
 export async function secureConfirmEnrollment(request,response){
  if(!secureModeConfigured())return send(response,503,{error:'Secure Studio is not configured'});
  if(!trustedOrigin(request))return send(response,403,{error:'Origin denied'});
- if(!enrollAllowed(request))return send(response,429,{error:'Too many attempts'});
+ if(!(await sharedThrottle(request,'enrollment',5)))return send(response,429,{error:'Setup temporarily unavailable or rate limited'});
  try{
   const {form,token,user}=await verifiedInvitedUser(request);
   const factorId=String(form?.factorId||''),code=String(form?.code||'');
