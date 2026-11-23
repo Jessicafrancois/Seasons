@@ -35,7 +35,9 @@ test('private Studio integrations endpoint and screen stay behind Studio auth',a
  assert.match(server,/integrationInventory\(\)/);
  assert.match(app,/fetch\('\/studio\/api\/integrations'/);
  assert.match(app,/renderIntegrations\(content,snapshot,integrationSnapshot\)/);
- assert.match(page,/Configured · not verified/);
+ assert.match(page,/integration-tile/);
+ assert.match(page,/integration-modal/);
+ assert.match(page,/Continue to /);
 });
 
 test('provider setup exposes secret names, not values',()=>{
