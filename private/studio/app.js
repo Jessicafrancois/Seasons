@@ -7,7 +7,7 @@ import {renderEditor} from './editor/opening.js';
 const navigation=document.getElementById('studio-nav'),content=document.getElementById('studio-content');
 const title=document.getElementById('page-title'),description=document.getElementById('page-description'),connect=document.getElementById('connect-status');
 const renderer={overview:renderOverview,inquiries:renderInquiries,alerts:renderAlerts,pages:renderPages,analytics:renderAnalytics,seasons:renderSeasons,projects:renderProjects,media:renderMedia,design:renderDesign,motion:renderMotion,publishing:renderPublishing,integrations:renderIntegrations,system:renderSystem,settings:renderSettings};
-let snapshot=null,editorDraft=null,active='overview';
+let snapshot=null,editorDraft=null,integrationSnapshot=null,active='overview';
 for(const section of sections){
  navigation.append(el('div',section.group,'group'));
  for(const [label,key] of section.items){
@@ -31,24 +31,26 @@ function navigate(key){
  else if(key==='opportunities')renderOpportunities(content);
  else if(key==='system')renderSystem(content,snapshot,editorDraft);
  else if(key==='settings')renderSettings(content,editorDraft);
- else if(key==='integrations')renderIntegrations(content,snapshot);
+ else if(key==='integrations')renderIntegrations(content,snapshot,integrationSnapshot);
  else renderer[key](content,snapshot);
  if(location.hash.slice(1)!==key)history.replaceState(null,'','#'+key);
 }
 async function refresh(){
  connect.textContent='Refreshing…';
  try{
-  const [overview,draft]=await Promise.all([
+  const [overview,draft,integrations]=await Promise.all([
    fetch('/studio/api/overview',{cache:'no-store'}),
-   fetch('/studio/api/draft',{cache:'no-store'})
+   fetch('/studio/api/draft',{cache:'no-store'}),
+   fetch('/studio/api/integrations',{cache:'no-store'})
   ]);
   if(!overview.ok)throw Error('Overview API unavailable');
   snapshot=await overview.json();
   editorDraft=draft.ok?await draft.json():{enabled:false};
+  integrationSnapshot=integrations.ok?await integrations.json():null;
   connect.textContent='Operational data loaded';
  }catch(e){
   connect.textContent='Data unavailable';
-  snapshot=null;editorDraft={enabled:false};
+  snapshot=null;editorDraft={enabled:false};integrationSnapshot=null;
  }
  navigate(active);
 }
