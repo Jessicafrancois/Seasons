@@ -10,7 +10,7 @@ import { centerLists, inquiryDetails, opportunityDetails } from './server/studio
 import { readDraft, saveDraft } from './server/studio-drafts.js';
 import { integrationInventory, testIntegration } from './server/studio-integrations.js';
 import { oauthAvailability, oauthConnections, oauthStart, oauthCallback, oauthDisconnect } from './server/studio-oauth.js';
-import {studioAuthMode,secureModeConfigured,trustedOrigin,secureLogin,secureIdentity,csrfValid,secureLogout,requireManage} from './server/studio-secure-auth.js';
+import {studioAuthMode,secureModeConfigured,trustedOrigin,secureLogin,secureEnroll,secureConfirmEnrollment,secureIdentity,csrfValid,secureLogout,requireManage} from './server/studio-secure-auth.js';
 import {vaultConfigured,vaultList,vaultSave,vaultDelete} from './server/studio-vault.js';
 import {studioCan,studioCanSeeRecord} from './server/studio-permissions.js';
 
@@ -80,6 +80,10 @@ createServer(async(request,response)=>{
   }
   if(path==='/studio/auth/login'&&request.method==='POST'&&studioAuthMode()==='secure')
    return await secureLogin(request,response);
+  if(path==='/studio/auth/enroll'&&request.method==='POST'&&studioAuthMode()==='secure')
+   return await secureEnroll(request,response);
+  if(path==='/studio/auth/confirm-enrollment'&&request.method==='POST'&&studioAuthMode()==='secure')
+   return await secureConfirmEnrollment(request,response);
   if(path==='/studio'||path==='/studio/'||path.startsWith('/studio/')){
    const mode=studioAuthMode();
    let identity=null;
