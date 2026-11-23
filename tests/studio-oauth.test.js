@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {oauthAvailability,oauthStart,oauthConnections,oauthDisconnect} from '../server/studio-oauth.js';
 import {readFile} from 'node:fs/promises';
 
-const keys=['STUDIO_OAUTH_ENABLED','STUDIO_AUTH_MODE','STUDIO_OAUTH_ENCRYPTION_KEY','STUDIO_OAUTH_ORIGIN',
+const keys=['STUDIO_OAUTH_ENABLED','STUDIO_AUTH_MODE','STUDIO_SESSION_CSRF_KEY','STUDIO_VAULT_KEYS','STUDIO_VAULT_ACTIVE_KEY_ID','STUDIO_OAUTH_ORIGIN',
  'SUPABASE_URL','SUPABASE_SERVICE_ROLE_KEY','NOTION_OAUTH_CLIENT_ID','NOTION_OAUTH_CLIENT_SECRET','NODE_ENV'];
 const before=Object.fromEntries(keys.map(k=>[k,process.env[k]]));
 function restore(){for(const key of keys){if(before[key]===undefined)delete process.env[key];else process.env[key]=before[key]}}
@@ -21,7 +21,9 @@ test('OAuth consent is disabled by default and without individual secure auth mo
   process.env.STUDIO_OAUTH_ENABLED='true';
   process.env.NODE_ENV='production';
   process.env.STUDIO_AUTH_MODE='local-basic';
-  process.env.STUDIO_OAUTH_ENCRYPTION_KEY='a'.repeat(64);
+  process.env.STUDIO_SESSION_CSRF_KEY='b'.repeat(64);
+  process.env.STUDIO_VAULT_ACTIVE_KEY_ID='key1';
+  process.env.STUDIO_VAULT_KEYS=JSON.stringify({key1:'a'.repeat(64)});
   process.env.STUDIO_OAUTH_ORIGIN='https://example.com';
   process.env.SUPABASE_URL='https://example.supabase.co';
   process.env.SUPABASE_SERVICE_ROLE_KEY='only-testing';
@@ -35,7 +37,9 @@ test('Notion grant opens provider permission screen with random state, not embed
   process.env.STUDIO_OAUTH_ENABLED='true';
   process.env.STUDIO_AUTH_MODE='secure';
   process.env.NODE_ENV='development';
-  process.env.STUDIO_OAUTH_ENCRYPTION_KEY='a'.repeat(64);
+  process.env.STUDIO_SESSION_CSRF_KEY='b'.repeat(64);
+  process.env.STUDIO_VAULT_ACTIVE_KEY_ID='key1';
+  process.env.STUDIO_VAULT_KEYS=JSON.stringify({key1:'a'.repeat(64)});
   process.env.STUDIO_OAUTH_ORIGIN='https://studio.example.test';
   process.env.SUPABASE_URL='https://example.supabase.co';
   process.env.SUPABASE_SERVICE_ROLE_KEY='not-for-browser';
