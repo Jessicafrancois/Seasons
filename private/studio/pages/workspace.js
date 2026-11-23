@@ -75,6 +75,13 @@ export function renderMotion(root){const card=section('Motion Studio','Preview')
 export function renderPublishing(root){const card=section('Publishing','Disabled');card.append(note('Publishing is intentionally disabled. Local draft settings are not public releases, and current Fall content remains unchanged.',true));root.append(card);}
 export function renderIntegrations(root,data,inventory){
  const records=inventory?.connections||[];
+ const callbackState=new URLSearchParams(location.search).get('connection');
+ if(callbackState){
+  const messages={connected:'Account authorized and saved securely.',denied:'Authorization was cancelled or denied.',invalid_state:'Authorization expired. Try connecting again.',unavailable:'The provider could not be connected. Review your setup and retry.'};
+  const message=messages[callbackState];
+  if(message)root.append(note(message,callbackState!=='connected'));
+  history.replaceState(null,'',location.pathname+'#integrations');
+ }
  const directory=section('Connected services','ACCOUNT CONNECTIONS');
  directory.classList.add('integration-directory');
  const intro=el('p','Give Seasons permission to access the content and accounts you choose. You can review each connection before authorizing it.','muted');
