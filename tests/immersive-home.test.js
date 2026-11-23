@@ -10,8 +10,9 @@ test('public homepage keeps current season, its artwork and the chapter route',(
  assert.match(result,/editorial-home-image/);
  assert.match(result,/src="\/seasons\/fall\/forest\.jpeg"/);
  assert.match(result,/href="#\/seasons\/fall"/);
- assert.match(result,/A life, <em>in seasons\.<\/em>/);
- assert.match(result,/Work in becoming/);
+ assert.match(result,/<h1 id="editorial-title">A life, in seasons\.<\/h1>/);
+ assert.match(result,/EXPLORE THE CHAPTER/);
+ assert.match(result,/editorial-home-pagination-current/);
 });
 test('immersive design is scoped to home route and stylesheet is linked',async()=>{
  const read=p=>readFile(new URL('../'+p,import.meta.url),'utf8');
@@ -35,4 +36,12 @@ test('public document is emitted by server code, rather than an HTML file',async
  assert.match(server,/publicDocument\(\)/);
  assert.doesNotMatch(server,/page \? '\/index\.html'/);
  assert.match(publicDocument(), /<main id="app"><\/main>/);
+});
+
+test('reference layout retains ruled top navigation and modest centered title',async()=>{
+ const css=await readFile(new URL('../public/styles/home-editorial.css',import.meta.url),'utf8');
+ assert.match(css,/border-top:1px solid rgba\(255,255,255,\.36\)/);
+ assert.match(css,/grid-template-columns:repeat\(5,minmax\(0,1fr\)\)/);
+ assert.match(css,/font:normal clamp\(37px,4\.3vw,67px\)/);
+ assert.match(css,/editorial-home-pagination-current/);
 });
