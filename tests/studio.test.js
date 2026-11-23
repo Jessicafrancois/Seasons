@@ -28,9 +28,16 @@ test('protected Studio and inquiry integration fail closed', async () => {
    await delay(100);
   }
   assert.ok(ready,'Server should become ready');
+  const publicHome=await fetch(base+'/');
+  assert.equal(publicHome.status,200);
+  assert.match(await publicHome.text(),/<main id="app"><\/main>/);
+  const projectShell=await fetch(base+'/projects/example');
+  assert.equal(projectShell.status,200);
   const denied=await fetch(base+'/studio/api/overview');
   assert.equal(denied.status,401);
   const auth='Basic '+Buffer.from('local_test_owner:local_test_unique_password').toString('base64');
+  const deniedCenters=await fetch(base+'/studio/api/centers');
+  assert.equal(deniedCenters.status,401);
   const studio=await fetch(base+'/studio/',{headers:{Authorization:auth}});
   assert.equal(studio.status,200);
   const html=await studio.text();
@@ -38,6 +45,11 @@ test('protected Studio and inquiry integration fail closed', async () => {
   assert.match(html,/\/studio\/assets\/app\.js/);
   const response=await fetch(base+'/studio/api/overview',{headers:{Authorization:auth}});
   assert.equal(response.status,200);
+  const centers=await fetch(base+'/studio/api/centers',{headers:{Authorization:auth}});
+  assert.equal(centers.status,200);
+  assert.deepEqual(await centers.json(),{connected:false,inquiries:[],opportunities:[],counts:null});
+  const deniedCenterWrite=await fetch(base+'/studio/api/centers',{method:'POST',headers:{Authorization:auth}});
+  assert.equal(deniedCenterWrite.status,405);
   const data=await response.json();
   assert.equal(data.pageCount,14);
   assert.equal(data.operations.storageConnected,false);
