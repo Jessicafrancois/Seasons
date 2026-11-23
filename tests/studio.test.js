@@ -18,7 +18,7 @@ test('route inventory matches public content modules', () => {
 
 test('protected Studio and inquiry integration fail closed', async () => {
  const port=String(36000+Math.floor(Math.random()*20000));
- const server=spawn(process.execPath,['server.js'],{cwd:process.cwd(),env:{...process.env,PORT:port,STUDIO_USERNAME:'local_test_owner',STUDIO_PASSWORD:'local_test_unique_password',SUPABASE_URL:'',SUPABASE_SERVICE_ROLE_KEY:''},stdio:'pipe'});
+ const server=spawn(process.execPath,['server.js'],{cwd:process.cwd(),env:{...process.env,NODE_ENV:'test',STUDIO_AUTH_MODE:'local-basic',PORT:port,STUDIO_USERNAME:'local_test_owner',STUDIO_PASSWORD:'local_test_unique_password',SUPABASE_URL:'',SUPABASE_SERVICE_ROLE_KEY:''},stdio:'pipe'});
  const base='http://127.0.0.1:'+port;
  try{
   let ready=false;
