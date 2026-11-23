@@ -9,7 +9,7 @@ import { operationalData, submitInquiry } from './server/studio-operations.js';
 import { centerLists, inquiryDetails, opportunityDetails } from './server/studio-centers.js';
 import { readDraft, saveDraft } from './server/studio-drafts.js';
 import { integrationInventory, testIntegration } from './server/studio-integrations.js';
-import { oauthAvailability, oauthConnections, oauthStart, oauthCallback } from './server/studio-oauth.js';
+import { oauthAvailability, oauthConnections, oauthStart, oauthCallback, oauthDisconnect } from './server/studio-oauth.js';
 
 const root=resolve(import.meta.dirname,'public');
 const studioRoot=resolve(import.meta.dirname,'private/studio');
@@ -83,6 +83,14 @@ createServer(async(request,response)=>{
    if(path==='/studio/api/oauth/status'&&request.method==='GET'){
     try{return json(response,200,{providers:oauthAvailability(),connections:await oauthConnections()})}
     catch{return json(response,503,{error:'Account connection status unavailable.'})}
+   }
+   const disconnect=path.match(/^\/studio\/api\/oauth\/connections\/(notion|spotify)$/);
+   if(disconnect){
+    if(request.method!=='DELETE')return json(response,405,{error:'Method not allowed.'});
+    if(!sameOrigin(request)||request.headers['x-seasons-studio']!=='connection-remove')
+     return json(response,403,{error:'Request denied.'});
+    const result=await oauthDisconnect(disconnect[1]);
+    return json(response,result.ok?200:503,result);
    }
    const oauthMatch=path.match(/^\/studio\/oauth\/start\/(notion|spotify)$/);
    if(oauthMatch&&request.method==='GET')return oauthStart(request,response,oauthMatch[1]);
