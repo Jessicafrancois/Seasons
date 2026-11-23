@@ -29,7 +29,7 @@ export async function db(path, options = {}) {
 export async function operationalData() {
   if (!connected()) return { inquiryCount: null, inquiries: [], alerts: [], alertCount: null, storageConnected: false };
   const [inquiries, alerts] = await Promise.all([
-    db('seasons_inquiries?select=id,created_at,contact_name,inquiry_type,project_id,status&order=created_at.desc&limit=25'),
+    db('seasons_inquiries?select=id,created_at,contact_name,inquiry_type,project_id,status,confidentiality&order=created_at.desc&limit=25'),
     db('seasons_alerts?select=id,created_at,severity,title,status&status=neq.resolved&order=created_at.desc&limit=25')
   ]);
   return { inquiryCount: inquiries.filter(x => x.status === 'new').length, inquiryCountScope: 'new in latest 25', inquiries, alerts, alertCount: alerts.length, alertCountScope: 'open or acknowledged in latest 25', storageConnected: true };
