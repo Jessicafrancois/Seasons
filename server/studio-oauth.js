@@ -94,7 +94,7 @@ export function oauthStart(request,response,provider){
 }
 export async function oauthCallback(request,response,query){
  const finish=(reason)=>response.writeHead(303,{
-  Location:'/studio/#integrations?connection='+encodeURIComponent(reason),
+  Location:'/studio/?connection='+encodeURIComponent(reason)+'#integrations',
   'Set-Cookie':cookie('',0),'Cache-Control':'no-store','Referrer-Policy':'no-referrer'
  }).end();
  let state;
@@ -130,4 +130,13 @@ export async function oauthCallback(request,response,query){
   });
   return finish('connected');
  }catch{return finish('unavailable')}
+}
+
+export async function oauthDisconnect(provider){
+ if(!Object.hasOwn(providers,provider))return {ok:false,message:'Unsupported provider'};
+ if(!enabled())return {ok:false,message:'OAuth connection storage is not configured'};
+ try{
+  await vault('DELETE',provider);
+  return {ok:true,message:'Saved connection removed. Revoke provider permissions in your provider account if desired.'};
+ }catch{return {ok:false,message:'Could not remove the saved connection'};}
 }
