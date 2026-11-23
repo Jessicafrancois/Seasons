@@ -10,6 +10,9 @@ import { centerLists, inquiryDetails, opportunityDetails } from './server/studio
 import { readDraft, saveDraft } from './server/studio-drafts.js';
 import { integrationInventory, testIntegration } from './server/studio-integrations.js';
 import { oauthAvailability, oauthConnections, oauthStart, oauthCallback, oauthDisconnect } from './server/studio-oauth.js';
+import {studioAuthMode,secureModeConfigured,trustedOrigin,secureLogin,secureIdentity,csrfValid,secureLogout,requireManage} from './server/studio-secure-auth.js';
+import {vaultConfigured,vaultList,vaultSave,vaultDelete} from './server/studio-vault.js';
+import {studioCan,studioCanSeeRecord} from './server/studio-permissions.js';
 
 const root=resolve(import.meta.dirname,'public');
 const studioRoot=resolve(import.meta.dirname,'private/studio');
@@ -66,26 +69,78 @@ createServer(async(request,response)=>{
   const path=decodeURIComponent(new URL(request.url,'http://localhost').pathname);
   if(path==='/api/inquiries'&&request.method==='POST')return await submitInquiry(request,response);
   if(/^\/api\/(?:studio\/)?openings\/[a-z]+$/.test(path))return await openingApi(request,response,path);
-  if(path==='/studio/login'&&request.method==='GET'){
-   response.writeHead(302,{'Location':'/studio/','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}).end();
-   return;
+  if((path==='/studio/login'||path==='/studio/login.js')&&request.method==='GET'){
+   if(studioAuthMode()!=='secure')return response.writeHead(302,{Location:'/studio/'}).end();
+   response.setHeader('Cache-Control','no-store');
+   response.setHeader('X-Content-Type-Options','nosniff');
+   response.setHeader('Referrer-Policy','no-referrer');
+   response.setHeader('Content-Security-Policy',"default-src 'none'; script-src 'self'; style-src 'unsafe-inline'; connect-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'");
+   const file=resolve(studioRoot,path.endsWith('.js')?'login.js':'login.html');
+   return response.writeHead(200,{'Content-Type':types[extname(file)]}).end(await readFile(file));
   }
+  if(path==='/studio/auth/login'&&request.method==='POST'&&studioAuthMode()==='secure')
+   return await secureLogin(request,response);
   if(path==='/studio'||path==='/studio/'||path.startsWith('/studio/')){
-   if(!protect(request,response))return;
+   const mode=studioAuthMode();
+   let identity=null;
+   if(mode==='secure'){
+    if(!secureModeConfigured())return json(response,503,{error:'Secure Studio authentication is not configured.'});
+    identity=await secureIdentity(request);
+    if(!identity){
+     if((path==='/studio'||path==='/studio/')&&request.method==='GET')
+      return response.writeHead(303,{Location:'/studio/login','Cache-Control':'no-store'}).end();
+     return json(response,401,{error:'Studio sign-in required.'});
+    }
+   }else if(mode==='local-basic'){
+    if(!protect(request,response))return;
+   }else return json(response,503,{error:'Studio sign-in is not configured.'});
+   if(path==='/studio/auth/logout'&&request.method==='POST'){
+    if(mode!=='secure')return json(response,405,{error:'Not available'});
+    return secureLogout(request,response,identity);
+   }
+   if(path==='/studio/api/session'&&request.method==='GET')
+    return json(response,200,{authenticated:true,role:identity?.member.role||'Local Development',
+     clearance:identity?.member.confidentiality_clearance||'Founder Private',
+     csrf:identity?.csrf||null,secure:mode==='secure'});
+   if(path==='/studio/api/credentials'){
+    if(mode!=='secure'||!requireManage(identity.member))return json(response,403,{error:'Access denied'});
+    if(request.method==='GET')return json(response,200,await vaultList());
+    if(!csrfValid(request,identity))return json(response,403,{error:'CSRF verification failed'});
+    if(Date.now()-Date.parse(identity.mfaVerifiedAt)>10*60*1000)
+     return json(response,403,{error:'Sign in again to manage credentials'});
+    if(!vaultConfigured())return json(response,503,{error:'Credential vault is not configured'});
+    if(request.method==='POST'){
+     const {provider,credentials}=await readJson(request,10000);
+     const result=await vaultSave(provider,credentials,identity);
+     return json(response,result.status,result);
+    }
+    return json(response,405,{error:'Method not allowed'});
+   }
+   const credentialDelete=path.match(/^\/studio\/api\/credentials\/(email|analytics|apple-music|supabase)$/);
+   if(credentialDelete){
+    if(mode!=='secure'||!requireManage(identity.member))return json(response,403,{error:'Access denied'});
+    if(request.method!=='DELETE')return json(response,405,{error:'Method not allowed'});
+    if(!csrfValid(request,identity))return json(response,403,{error:'CSRF verification failed'});
+    if(Date.now()-Date.parse(identity.mfaVerifiedAt)>10*60*1000)return json(response,403,{error:'Sign in again to manage credentials'});
+    const result=await vaultDelete(credentialDelete[1],identity);
+    return json(response,result.status,result);
+   }
    const integrationTest=path.match(/^\/studio\/api\/integrations\/([a-z-]+)\/test$/);
    if(integrationTest){
     if(request.method!=='POST')return json(response,405,{error:'Method not allowed.'});
-    if(!sameOrigin(request)||request.headers['x-seasons-studio']!=='integration-check')
+    if((mode==='secure'&&(!requireManage(identity.member)||!csrfValid(request,identity)))||!sameOrigin(request)||request.headers['x-seasons-studio']!=='integration-check')
      return json(response,403,{error:'Request denied.'});
     const result=await testIntegration(integrationTest[1]);
     return json(response,200,result);
    }
    if(path==='/studio/api/oauth/status'&&request.method==='GET'){
+    if(mode==='secure'&&!requireManage(identity.member))return json(response,403,{error:'Permission denied'});
     try{return json(response,200,{providers:oauthAvailability(),connections:await oauthConnections()})}
     catch{return json(response,503,{error:'Account connection status unavailable.'})}
    }
    const disconnect=path.match(/^\/studio\/api\/oauth\/connections\/(notion|spotify)$/);
    if(disconnect){
+    if(mode!=='secure'||!requireManage(identity.member)||!csrfValid(request,identity))return json(response,403,{error:'Permission denied'});
     if(request.method!=='DELETE')return json(response,405,{error:'Method not allowed.'});
     if(!sameOrigin(request)||request.headers['x-seasons-studio']!=='connection-remove')
      return json(response,403,{error:'Request denied.'});
@@ -93,8 +148,12 @@ createServer(async(request,response)=>{
     return json(response,result.ok?200:503,result);
    }
    const oauthMatch=path.match(/^\/studio\/oauth\/start\/(notion|spotify)$/);
-   if(oauthMatch&&request.method==='GET')return oauthStart(request,response,oauthMatch[1]);
+   if(oauthMatch&&request.method==='POST'){
+    if(mode!=='secure'||!requireManage(identity.member)||!csrfValid(request,identity))return json(response,403,{error:'Permission denied'});
+    return oauthStart(request,response,oauthMatch[1]);
+   }
    if(path==='/studio/oauth/callback'&&request.method==='GET'){
+    if(mode!=='secure'||!requireManage(identity.member))return json(response,403,{error:'Permission denied'});
     return await oauthCallback(request,response,new URL(request.url,'http://localhost').searchParams);
    }
    if(path==='/studio/api/integrations'){
@@ -102,15 +161,23 @@ createServer(async(request,response)=>{
     return json(response,200,integrationInventory());
    }
    if(path==='/studio/api/overview'&&request.method==='GET'){
-    try{return json(response,200,{...overview(),operations:await operationalData()})}
+    try{
+     const operations=await operationalData();
+     if(identity){
+      operations.inquiries=operations.inquiries.filter(item=>studioCanSeeRecord(identity.member,'inquiries.read',item));
+      operations.inquiryCount=operations.inquiries.filter(x=>x.status==='new').length;
+     }
+     return json(response,200,{...overview(),operations});
+    }
     catch{return json(response,503,{error:'Operations data temporarily unavailable.'})}
    }
    if(path==='/studio/api/draft'&&request.method==='GET'){
+    if(identity&&!studioCan(identity.member,'editor.manage'))return json(response,403,{error:'Permission denied'});
     try{return json(response,200,await readDraft())}
     catch{return json(response,503,{error:'Draft data unavailable.'})}
    }
    if(path==='/studio/api/draft'&&request.method==='PUT'){
-    if(!sameOrigin(request)||request.headers['x-seasons-studio']!=='draft-editor')return json(response,403,{error:'Write request denied.'});
+    if((mode==='secure'&&(!studioCan(identity.member,'editor.manage')||!csrfValid(request,identity)))||!sameOrigin(request)||request.headers['x-seasons-studio']!=='draft-editor')return json(response,403,{error:'Write request denied.'});
     if(!String(request.headers['content-type']||'').startsWith('application/json'))return json(response,415,{error:'Expected JSON.'});
     try{return json(response,200,await saveDraft(await readJson(request)))}
     catch(error){return json(response,error.status|| (error.message.startsWith('Invalid')?422:503),{error:error.message.startsWith('Invalid')?error.message:'Local draft storage unavailable.'})}
@@ -118,10 +185,22 @@ createServer(async(request,response)=>{
    if(path==='/studio/api/centers'||/^\/studio\/api\/(inquiries|opportunities)\/[a-f0-9-]+$/i.test(path)){
     if(request.method!=='GET')return json(response,405,{error:'Method not allowed.'});
     try{
-     if(path==='/studio/api/centers')return json(response,200,await centerLists());
+     if(path==='/studio/api/centers'){
+      const data=await centerLists();
+      if(identity){
+       data.inquiries=data.inquiries.filter(x=>studioCanSeeRecord(identity.member,'inquiries.read',x));
+       data.opportunities=data.opportunities.filter(x=>studioCanSeeRecord(identity.member,'opportunities.read',x));
+       data.counts={recentInquiries:data.inquiries.length,recentOpportunities:data.opportunities.length};
+      }
+      return json(response,200,data);
+     }
      const match=path.match(/^\/studio\/api\/(inquiries|opportunities)\/([a-f0-9-]+)$/i);
      const record=match[1]==='inquiries'?await inquiryDetails(match[2]):await opportunityDetails(match[2]);
-     return record?json(response,200,record):json(response,404,{error:'Record not found.'});
+     if(!record)return json(response,404,{error:'Record not found.'});
+     const item=match[1]==='inquiries'?record.inquiry:record.opportunity;
+     if(identity&&!studioCanSeeRecord(identity.member,match[1]==='inquiries'?'inquiries.read':'opportunities.read',item))
+      return json(response,404,{error:'Record not found.'});
+     return json(response,200,record);
     }catch{return json(response,503,{error:'Studio records temporarily unavailable.'})}
    }
    if(request.method!=='GET')return json(response,405,{error:'Method not allowed.'});
