@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<meta name="referrer" content="no-referrer">
+<title>Sign in | Seasons Studio</title>
+<style>
+:root{color-scheme:light;font-family:Arial,Helvetica,sans-serif;color:#29312b;background:#f1f0eb}
+*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;padding:20px}
+main{width:min(100%,410px);background:#fffefa;border:1px solid #dfded6;border-radius:14px;padding:38px;box-shadow:0 14px 36px #29312b0d}
+h1{font:normal 39px Georgia,serif;letter-spacing:-1.5px;margin:4px 0 12px}
+.eyebrow{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:#70766f}
+p{line-height:1.6;color:#656d66;font-size:13px}label{display:block;font-size:12px;font-weight:600;margin-top:22px}
+input{display:block;width:100%;border:1px solid #c9cfc6;background:white;border-radius:6px;padding:13px;font:inherit;margin-top:8px}
+button{width:100%;background:#293b32;color:white;padding:14px;border:0;border-radius:6px;font:600 13px Arial,sans-serif;cursor:pointer;margin-top:24px}
+button:disabled{opacity:.7}input:focus-visible,button:focus-visible{outline:2px solid #536e5c;outline-offset:2px}
+#status{min-height:22px}footer{margin-top:24px;font-size:12px;color:#7a7f76;text-align:center}
+a{color:inherit}
+</style>
+<script defer src="/studio/login.js"></script>
+</head>
+<body><main>
+<div class="eyebrow">Seasons / Private Studio</div>
+<h1>Welcome back.</h1>
+<p>Sign in with your authorized Seasons Studio account. Access is limited to invited members. Your verified account must have MFA enabled.</p>
+<form id="sign-in">
+<label>Email<input name="email" type="email" autocomplete="username" required maxlength="254"></label>
+<label>Password<input name="password" type="password" autocomplete="current-password" required></label>
+<label>Authenticator code<input name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" minlength="6" maxlength="6" required placeholder="6-digit code"></label>\n<button type="submit">Enter Studio</button>
+<p id="status" role="status" aria-live="polite"></p>
+</form>
+<footer><a href="/">Return to Seasons</a></footer>
+</main></body></html>
