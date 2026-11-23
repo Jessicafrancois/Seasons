@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {oauthAvailability,oauthStart,oauthConnections,oauthDisconnect} from '../server/studio-oauth.js';
 import {readFile} from 'node:fs/promises';
 
-const keys=['STUDIO_OAUTH_ENABLED','STUDIO_OAUTH_ENCRYPTION_KEY','STUDIO_OAUTH_ORIGIN',
+const keys=['STUDIO_OAUTH_ENABLED','STUDIO_AUTH_MODE','STUDIO_OAUTH_ENCRYPTION_KEY','STUDIO_OAUTH_ORIGIN',
  'SUPABASE_URL','SUPABASE_SERVICE_ROLE_KEY','NOTION_OAUTH_CLIENT_ID','NOTION_OAUTH_CLIENT_SECRET','NODE_ENV'];
 const before=Object.fromEntries(keys.map(k=>[k,process.env[k]]));
 function restore(){for(const key of keys){if(before[key]===undefined)delete process.env[key];else process.env[key]=before[key]}}
@@ -13,13 +13,14 @@ function response(){
  end(body){this.body=body;return this}
  };
 }
-test('OAuth consent is disabled by default and in production Basic-auth mode',()=>{
+test('OAuth consent is disabled by default and without individual secure auth mode',()=>{
  try{
   for(const key of keys)delete process.env[key];
   assert.equal(oauthAvailability().notion.available,false);
   assert.deepEqual(Object.keys(oauthAvailability()).sort(),['notion','spotify']);
   process.env.STUDIO_OAUTH_ENABLED='true';
   process.env.NODE_ENV='production';
+  process.env.STUDIO_AUTH_MODE='local-basic';
   process.env.STUDIO_OAUTH_ENCRYPTION_KEY='a'.repeat(64);
   process.env.STUDIO_OAUTH_ORIGIN='https://example.com';
   process.env.SUPABASE_URL='https://example.supabase.co';
@@ -32,6 +33,7 @@ test('OAuth consent is disabled by default and in production Basic-auth mode',()
 test('Notion grant opens provider permission screen with random state, not embedded client secrets',()=>{
  try{
   process.env.STUDIO_OAUTH_ENABLED='true';
+  process.env.STUDIO_AUTH_MODE='secure';
   process.env.NODE_ENV='development';
   process.env.STUDIO_OAUTH_ENCRYPTION_KEY='a'.repeat(64);
   process.env.STUDIO_OAUTH_ORIGIN='https://studio.example.test';
@@ -42,13 +44,14 @@ test('Notion grant opens provider permission screen with random state, not embed
   assert.equal(oauthAvailability().notion.available,true);
   const res=response();
   oauthStart({headers:{host:'studio.example.test'}},res,'notion');
-  assert.equal(res.status,302);
-  const link=new URL(res.headers.Location);
+  assert.equal(res.status,200);
+  const link=new URL(JSON.parse(res.body).authorizationUrl);
   assert.equal(link.host,'api.notion.com');
   assert.equal(link.searchParams.get('owner'),'user');
   assert.equal(link.searchParams.get('redirect_uri'),'https://studio.example.test/studio/oauth/callback');
   assert.ok(link.searchParams.get('state').length>20);
   assert.match(res.headers['Set-Cookie'],/HttpOnly; SameSite=Lax; Secure/);
+  assert.equal(res.headers['Cache-Control'],'no-store');
   assert.doesNotMatch(JSON.stringify(res.headers),/secret-never-share|not-for-browser/);
  }finally{restore()}
 });
