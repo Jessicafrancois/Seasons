@@ -13,7 +13,7 @@ test('founder grants explicit elevated capabilities only for valid active member
   assert.equal(studioCan(founder,action,'Founder Private'),true);
  assert.equal(studioCan({...founder,is_active:false},'rights.activate'),false);
  assert.equal(studioCan(null,'studio.read'),false);
- assert.equal(studioCan({...founder,role:'Founder',confidentiality_clearance:'Standard'},'studio.read'),true);
+ assert.equal(studioCan({...founder,role:'Founder',confidentiality_clearance:'Standard'},'studio.read'),false);
  assert.equal(studioMembershipValid({...founder,confidentiality_clearance:'Standard'}),false);
 });
 
