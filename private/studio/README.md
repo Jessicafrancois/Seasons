@@ -75,3 +75,21 @@ The register groups Notion editorial content, Supabase operations and storage, e
 **Next implementation gates:** authenticate the founder with a production-safe Studio session; verify Notion database and page scopes; probe Supabase read permissions and storage buckets; choose email provider and domain; create webhook verification and message threading; add consent-aware analytics. Record failed checks without leaking credentials. Never treat a credential-presence check as successful remote validation.
 
 Tests: `tests/studio-integrations.test.js`. In Codespaces run `npm test`. The main-branch GitHub Actions workflow includes the server module in syntax checks.
+
+
+## Configure integrations from the Studio dashboard
+
+Select **Notion & Integrations** in the private Studio and choose **Configure** beside a provider. The panel lists the exact server environment variables and links to the provider's own setup area. Select **Copy name** to help create each secret. Keep secret **values** in [GitHub Codespaces secrets](https://github.com/settings/codespaces) or your deployed server's environment settings, not in a client form or GitHub source files. Restart the Codespace after updating secrets. Choose **Test connection** to check the server's credentials against the supported provider API and read the result inline. Tests never persist or disclose credentials, and do not perform editorial, media, email-delivery or rights mutations.
+
+Supported tests:
+- **Notion:** get current integration/bot user. Requires `NOTION_TOKEN`. Does not validate access to all Seasons pages, which must also be shared.
+- **Supabase Database:** read-only zero-row query to the existing Seasons inquiries table. Requires `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`.
+- **Supabase Storage:** retrieve the named bucket metadata. The default bucket name is `seasons-private-documents`, override with `SEASONS_PRIVATE_BUCKET`. A successful response does not prove upload/download authorization.
+- **Email:** Resend domain list check. Requires `SEASONS_EMAIL_PROVIDER=resend` and `SEASONS_EMAIL_API_KEY`. Mail sending, inbound webhooks and threading remain disabled.
+- **Spotify:** app-level OAuth client credentials test. Requires `SPOTIFY_CLIENT_ID` and `SPOTIFY_CLIENT_SECRET`. Not a user Spotify account connection.
+- **Apple Music:** catalog API developer-token test. Requires `APPLE_MUSIC_DEVELOPER_TOKEN`. Not MusicKit listener authorization.
+- **Analytics:** read-only Plausible aggregate query. Requires `PLAUSIBLE_SITE_ID` and `PLAUSIBLE_API_KEY`. No browser analytics script is installed.
+
+**Security boundary:** The existing shared Basic authorization in Studio is still for trusted local testing. Because full production sessions, MFA, CSRF hardening, and key rotation have not been completed, this build deliberately does **not** accept token/secret values in a Studio browser form. Once those prerequisites are ready, we can implement an encrypted credential vault and provider OAuth connection flows. Do not expose a public administrator site behind a shared Basic password.
+
+A successful test establishes only that a particular provider's credential-level endpoint responded, not that data synchronization, email delivery, publishing, or licensing is live.
