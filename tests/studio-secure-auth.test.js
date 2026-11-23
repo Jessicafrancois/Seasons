@@ -92,6 +92,7 @@ test('verified invited founder receives opaque revocable session only after Supa
   process.env.SUPABASE_SERVICE_ROLE_KEY='test-server-key';
   process.env.SUPABASE_PUBLISHABLE_KEY='test-public-key';
   globalThis.fetch=async(url,init)=>{
+   if(url.includes('seasons_studio_auth_limit_check'))return reply(true);
    if(url.includes('/auth/v1/token?'))return reply({access_token:'first-factor-token'});
    if(url.includes('/auth/v1/user'))return reply({id:userId,email_confirmed_at:'2026-11-23T00:00:00Z',factors:[{id:factorId,factor_type:'totp',status:'verified'}]});
    if(url.endsWith('/challenge'))return reply({id:'challenge-id'});
