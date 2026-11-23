@@ -37,21 +37,19 @@ function navigate(key){
 }
 async function refresh(){
  connect.textContent='Refreshing…';
- try{
-  const [overview,draft,integrations]=await Promise.all([
-   fetch('/studio/api/overview',{cache:'no-store'}),
-   fetch('/studio/api/draft',{cache:'no-store'}),
-   fetch('/studio/api/integrations',{cache:'no-store'})
-  ]);
-  if(!overview.ok)throw Error('Overview API unavailable');
-  snapshot=await overview.json();
-  editorDraft=draft.ok?await draft.json():{enabled:false};
-  integrationSnapshot=integrations.ok?await integrations.json():null;
-  connect.textContent='Operational data loaded';
- }catch(e){
-  connect.textContent='Data unavailable';
-  snapshot=null;editorDraft={enabled:false};integrationSnapshot=null;
- }
+ const [overviewResult,draftResult,integrationResult]=await Promise.allSettled([
+  fetch('/studio/api/overview',{cache:'no-store'}),
+  fetch('/studio/api/draft',{cache:'no-store'}),
+  fetch('/studio/api/integrations',{cache:'no-store'})
+ ]);
+ const read=async result=>{
+  if(result.status!=='fulfilled'||!result.value.ok)return null;
+  try{return await result.value.json()}catch{return null}
+ };
+ snapshot=await read(overviewResult);
+ editorDraft=await read(draftResult)||{enabled:false};
+ integrationSnapshot=await read(integrationResult);
+ connect.textContent=snapshot?'Operational data loaded':integrationSnapshot?'Integration status loaded · other data unavailable':'Data unavailable';
  navigate(active);
 }
 document.getElementById('refresh').addEventListener('click',refresh);
