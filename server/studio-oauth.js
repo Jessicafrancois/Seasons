@@ -115,12 +115,13 @@ export async function oauthConnections(){
  }
  return present;
 }
-export function oauthStart(request,response,provider){
+export function oauthStart(request,response,provider,identity){
  const conf=config(provider);
+ if(!identity?.id)return response.writeHead(403).end('Authentication required.');
  if(!conf)return response.writeHead(503,{'Cache-Control':'no-store'}).end('Account connection is not configured.');
  const expected=origin();
  if(request.headers.host!==new URL(expected).host)return response.writeHead(403).end('Invalid host.');
- const state=randomBytes(24).toString('base64url'),nonce=signState({state,provider,time:Date.now()});
+ const state=randomBytes(24).toString('base64url'),nonce=signState({state,provider,userId:identity.id,time:Date.now()});
  const url=new URL(conf.authorization);
  url.searchParams.set('client_id',process.env[conf.id]);
  url.searchParams.set('response_type','code');
@@ -130,14 +131,14 @@ export function oauthStart(request,response,provider){
  if(conf.scope)url.searchParams.set('scope',conf.scope);
  response.writeHead(200,{'Content-Type':'application/json; charset=utf-8','Set-Cookie':cookie(nonce,600),'Cache-Control':'no-store','Referrer-Policy':'no-referrer'}).end(JSON.stringify({authorizationUrl:url.href}));
 }
-export async function oauthCallback(request,response,query){
+export async function oauthCallback(request,response,query,identity){
  const finish=(reason)=>response.writeHead(303,{
   Location:'/studio/?connection='+encodeURIComponent(reason)+'#integrations',
   'Set-Cookie':cookie('',0),'Cache-Control':'no-store','Referrer-Policy':'no-referrer'
  }).end();
  let state;
  try{state=verifyState(cookieValue(request));}catch{return finish('invalid_state')}
- if(!state||!providers[state.provider]||Date.now()-state.time>600000||Date.now()<state.time
+ if(!state||!identity?.id||state.userId!==identity.id||!providers[state.provider]||Date.now()-state.time>600000||Date.now()<state.time
   ||!equal(state.state,query.get('state'))||!config(state.provider)||query.has('error'))
   return finish('denied');
  const conf=providers[state.provider],basic='Basic '+Buffer.from(process.env[conf.id]+':'+process.env[conf.secret]).toString('base64');
