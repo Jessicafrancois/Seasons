@@ -1,4 +1,5 @@
 import { el, clear, section, item, button, note, table, field } from '../components/ui.js';
+import { credentialSetup } from './credential-setup.js';
 
 function metric(name,value,detail){const card=el('div','','card');card.append(el('div',name,'metric-name'),el('div',value,'metric-value'),el('div',detail,'muted'));return card;}
 function empty(message){return el('div',message,'empty');}
@@ -73,7 +74,7 @@ export function renderMedia(root){const card=section('Media Library','Integratio
 export function renderDesign(root){const card=section('Design System','Foundation');card.append(note('The Studio interface is now styled through one shared stylesheet. Tokens for the public PWA will be mapped separately to avoid changing existing pages.'));root.append(card);}
 export function renderMotion(root){const card=section('Motion Studio','Preview');card.append(note('The opening editor contains initial motion settings. Reusable transition presets and a full animation timeline are planned.'));root.append(card);}
 export function renderPublishing(root){const card=section('Publishing','Disabled');card.append(note('Publishing is intentionally disabled. Local draft settings are not public releases, and current Fall content remains unchanged.',true));root.append(card);}
-export function renderIntegrations(root,data,inventory){
+export function renderIntegrations(root,data,inventory,session,vault,onUpdated){
  const records=inventory?.connections||[];
  const callbackState=new URLSearchParams(location.search).get('connection');
  if(callbackState){
@@ -141,7 +142,7 @@ export function renderIntegrations(root,data,inventory){
     remove.disabled=true;result.textContent='Removing saved connection…';
     try{
      const res=await fetch('/studio/api/oauth/connections/'+id,{
-      method:'DELETE',credentials:'same-origin',headers:{'X-Seasons-Studio':'connection-remove'}
+      method:'DELETE',credentials:'same-origin',headers:{'X-Seasons-Studio':'connection-remove','X-Studio-CSRF':session?.csrf||''}
      });
      const body=await res.json();
      if(!res.ok||!body.ok)throw Error('Removal failed');
@@ -156,7 +157,17 @@ export function renderIntegrations(root,data,inventory){
    buttons.append(remove);
   }else if(authorization?.available){
    instruction.append(note('Your account authorization will open on the provider website. Review its permission screen and select the content you wish to share.'));
-   const connect=button('Continue to '+record.name,()=>{location.assign('/studio/oauth/start/'+id)});
+   const connect=button('Continue to '+record.name,async()=>{
+    connect.disabled=true;result.textContent='Opening '+record.name+' permissions…';
+    try{
+     const res=await fetch('/studio/oauth/start/'+id,{
+      method:'POST',credentials:'same-origin',headers:{'X-Studio-CSRF':session?.csrf||''}
+     });
+     const data=await res.json();
+     if(!res.ok||!data.authorizationUrl)throw Error('Authorization is not configured');
+     location.assign(data.authorizationUrl);
+    }catch{result.textContent='Unable to start authorization. Review the application settings.';connect.disabled=false}
+   });
    buttons.append(connect);
   }else{
    instruction.append(note('Account authorization is not yet enabled for this provider in this Studio environment. Configure the required application settings below.'));
@@ -183,7 +194,7 @@ export function renderIntegrations(root,data,inventory){
   const check=button('Test connection',async()=>{
    check.disabled=true;result.textContent='Checking server credentials…';
    try{
-    const res=await fetch('/studio/api/integrations/'+encodeURIComponent(id)+'/test',{method:'POST',credentials:'same-origin',headers:{'X-Seasons-Studio':'integration-check'}});
+    const res=await fetch('/studio/api/integrations/'+encodeURIComponent(id)+'/test',{method:'POST',credentials:'same-origin',headers:{'X-Seasons-Studio':'integration-check','X-Studio-CSRF':session?.csrf||''}});
     const data=await res.json();
     if(!res.ok)throw Error('Check unavailable');
     result.textContent=(data.status==='verified'?'Connected to provider. ':'Not verified. ')+data.message;
@@ -191,6 +202,7 @@ export function renderIntegrations(root,data,inventory){
    finally{check.disabled=false}
   },true);
   buttons.append(check);
+  credentialSetup(instruction,buttons,result,id,session,vault,onUpdated);
   modal.showModal();
  }
  for(const connection of records){
@@ -200,7 +212,8 @@ export function renderIntegrations(root,data,inventory){
   const arrow=el('span','↗','integration-tile-arrow');top.append(icon,arrow);
   const title=el('strong',connection.name,'integration-tile-name');
   const kind=el('p',category[connection.id]||'Service','integration-tile-category');
-  const state=el('span',label[connection.state]||'Not connected','integration-tile-state');
+  const saved=vault?.providers?.some(x=>x.provider===connection.id);
+  const state=el('span',saved?'Credential saved':label[connection.state]||'Not connected','integration-tile-state');
   tile.append(top,title,kind,state);
   tile.addEventListener('click',()=>launch(connection.id));
   cards.append(tile);
