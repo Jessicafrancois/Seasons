@@ -179,7 +179,7 @@ From Studio → Notion & Integrations, click a card.
 
 ### Production review gates still required
 
-Review MFA account recovery; rate limiting that is shared across all server instances (the current in-memory throttle is not sufficient for horizontally scaled deployments); login and session activity monitoring; load tests; key rotation and KMS options; deployment-origin and reverse-proxy assumptions; backup/recovery; provider permission audits; OAuth token refresh/revocation; and complete end-to-end security tests. These are not waived by a passing syntax check.
+Review MFA account recovery; validate the installed database-backed shared rate limiter under realistic client-IP traffic; login and session activity monitoring; load tests; key rotation and KMS options; deployment-origin and reverse-proxy assumptions; backup/recovery; provider permission audits; OAuth token refresh/revocation; and complete end-to-end security tests. These are not waived by a passing syntax check.
 
 `npm test` includes authentication and encryption regression tests. No real credentials are used in these tests.
 
@@ -188,3 +188,31 @@ Review MFA account recovery; rate limiting that is shared across all server inst
 Run `npm run studio:preflight` in the Codespace after its secrets are loaded. It prints only variable names and OK/MISSING indicators, not secret values. Fix any missing settings before opening `/studio/login`. Passing preflight does **not** confirm MFA enrollment, database membership, provider authorization, session revocation, deployment safety, or full integration tests. The public Vercel site may be on a separate runtime from your Codespace and requires its own secrets and deployment checks.
 
 The legacy shared-secret endpoint `/api/studio/openings/*` is intentionally disabled whenever `STUDIO_AUTH_MODE=secure`. The modern protected Studio editor must be migrated to individual authorization before remote Notion edits are re-enabled. Public read-only opening settings are unaffected.
+
+## Vercel deployment and secret setup (November 2026)
+
+The repository includes `api/index.js`, which invokes the same Node HTTP handler as `server.js` without listening on a TCP port. The `vercel.json` rewrite sends dynamic Seasons and Studio requests to this function. Vercel bundles the allowlisted private Studio client code and public static files with the function for filesystem reads. The local `npm run dev` server remains supported.
+
+A valid Vercel build is not enough: before promoting a deployment verify the actual HTML route `/`, `/studio/login`, the protected `/studio/api/session` and `/studio/api/credentials`, plus static assets and public inquiry submission. Run `npm test` and verify `node --test tests/vercel-runtime.test.js` first. Do not enable `STUDIO_AUTH_MODE=secure` until both the private backend and verified Founder identity work.
+
+**Production values already provisioned through the connected Vercel project:**
+
+- `SUPABASE_URL`: existing Seasons Supabase project URL
+- `SUPABASE_PUBLISHABLE_KEY`: existing enabled publishable key (not a service-role key)
+- `STUDIO_PUBLIC_ORIGIN`: `https://seasons-zeta-five.vercel.app` (change this if a new canonical domain is selected)
+- `STUDIO_AUTH_MODE=disabled` and `STUDIO_OAUTH_ENABLED=false` to keep private routes disabled pending readiness
+
+**Private production secrets that still require secure generation/provisioning:**
+
+1. `SUPABASE_SERVICE_ROLE_KEY`: obtain from your existing Supabase project's server API key settings. Keep it in a Vercel encrypted/sensitive Production environment variable. NEVER put it in the PWA, source, app logs, Notion, or a user message.
+2. `STUDIO_SESSION_CSRF_KEY`: generate 32 cryptographically random bytes as 64 lowercase hex characters.
+3. `STUDIO_VAULT_KEYS`: JSON object containing a separate random 32-byte key, e.g. `{"key2026":"<64 hexadecimal characters>"}`. Keep a secure key escrow/backup under the owner's control so encryption keys are not lost on deployment changes.
+4. `STUDIO_VAULT_ACTIVE_KEY_ID=key2026`: nonsecret identifier matching the keyring entry. Do not reuse the CSRF key as a vault encryption key.
+
+Generate secrets locally using Node's `crypto.randomBytes(32).toString('hex')` or a password manager's cryptographic generator. Don't copy secret outputs into ChatGPT or a GitHub commit. Add these privately in Vercel → Seasons → Settings → Environment Variables, target Production only. Protect the production environment and restrict team access. Re-deploy after configuration; environment changes do not retroactively update past deployments.
+
+**Founder enrollment:** Supabase Auth currently has no verified Studio founder. Invite/create the founder through the Supabase Authentication dashboard, verify their email, confirm their actual UUID, then assign a Founder membership in the existing `seasons_studio_members` table. Enroll and test TOTP on the new `/studio/login` page before enabling secure mode in production.
+
+**Activation gate:** once smoke tests, authentication checks, rate-limit checks and credential-vault checks all pass, set `STUDIO_AUTH_MODE=secure`, test the new deployment, then enable `STUDIO_OAUTH_ENABLED=true` and configure OAuth client IDs/secrets and exact callback redirects as a separate step.
+
+**Release caveat:** Vercel Hobby's daily deployment rate limit has previously blocked fresh deployments. Do not claim the current GitHub commit is live until Vercel reports a READY deployment with the exact commit SHA and protected endpoint checks succeed.
