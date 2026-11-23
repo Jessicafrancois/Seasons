@@ -11,7 +11,7 @@ import { readDraft, saveDraft } from './server/studio-drafts.js';
 import { integrationInventory, testIntegration } from './server/studio-integrations.js';
 import { oauthAvailability, oauthConnections, oauthStart, oauthCallback, oauthDisconnect } from './server/studio-oauth.js';
 import {studioAuthMode,secureModeConfigured,trustedOrigin,secureLogin,secureEnroll,secureConfirmEnrollment,secureIdentity,csrfValid,secureLogout,requireManage} from './server/studio-secure-auth.js';
-import {vaultConfigured,vaultList,vaultSave,vaultDelete} from './server/studio-vault.js';
+import {vaultConfigured,vaultList,vaultSave,vaultDelete,serverCredential,verifyCredential} from './server/studio-vault.js';
 import {studioCan,studioCanSeeRecord} from './server/studio-permissions.js';
 
 const root=resolve(import.meta.dirname,'public');
@@ -137,7 +137,17 @@ createServer(async(request,response)=>{
     if(request.method!=='POST')return json(response,405,{error:'Method not allowed.'});
     if((mode==='secure'&&(!requireManage(identity.member)||!csrfValid(request,identity)))||!sameOrigin(request)||request.headers['x-seasons-studio']!=='integration-check')
      return json(response,403,{error:'Request denied.'});
-    const result=await testIntegration(integrationTest[1]);
+    const id=integrationTest[1];
+    if(mode==='secure'&&vaultConfigured()&&['supabase','email','apple-music','analytics'].includes(id)){
+     try{
+      const saved=await serverCredential(id);
+      if(saved){
+       const probe=await verifyCredential(id,saved);
+       return json(response,200,{id,status:probe.ok?'verified':'failed',message:probe.message});
+      }
+     }catch{return json(response,503,{error:'Stored credential check unavailable'})}
+    }
+    const result=await testIntegration(id);
     return json(response,200,result);
    }
    if(path==='/studio/api/oauth/status'&&request.method==='GET'){
