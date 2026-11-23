@@ -112,6 +112,63 @@ export async function secureLogin(request,response){
   send(response,401,{error:'Sign-in denied. Confirm your invitation, verified email, and six-digit authenticator code.'});
  }
 }
+const ENROLL_ATTEMPTS=new Map();
+function enrollAllowed(request){
+ const ip=request.socket?.remoteAddress||'unknown',now=Date.now();
+ const list=(ENROLL_ATTEMPTS.get(ip)||[]).filter(t=>now-t<15*60*1000);
+ if(list.length>=5)return false;
+ list.push(now);ENROLL_ATTEMPTS.set(ip,list);
+ if(ENROLL_ATTEMPTS.size>10000)ENROLL_ATTEMPTS.clear();
+ return true;
+}
+async function verifiedInvitedUser(request){
+ const form=await body(request);
+ const email=String(form?.email||'').trim(),password=String(form?.password||'');
+ if(!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)||email.length>254||password.length<1||password.length>512)throw Error('Denied');
+ const grant=await supabase('/auth/v1/token?grant_type=password',{method:'POST',body:JSON.stringify({email,password})});
+ const token=grant?.access_token;
+ if(!token)throw Error('Denied');
+ const user=await supabase('/auth/v1/user',{headers:{Authorization:'Bearer '+token}});
+ if(!user?.id||!user.email_confirmed_at||user.is_anonymous===true||!(await membership(user.id)))throw Error('Denied');
+ return {form,token,user};
+}
+export async function secureEnroll(request,response){
+ if(!secureModeConfigured())return send(response,503,{error:'Secure Studio is not configured'});
+ if(!trustedOrigin(request))return send(response,403,{error:'Origin denied'});
+ if(!enrollAllowed(request))return send(response,429,{error:'Too many attempts'});
+ try{
+  const {token,user}=await verifiedInvitedUser(request);
+  if(user.factors?.some(f=>f.factor_type==='totp'&&f.status==='verified'))throw Error('Already enrolled');
+  const result=await supabase('/auth/v1/factors',{
+   method:'POST',headers:{Authorization:'Bearer '+token},
+   body:JSON.stringify({factor_type:'totp',friendly_name:'Seasons Studio'})
+  });
+  if(!result?.id||!result.totp?.secret)throw Error('Enrollment unavailable');
+  return send(response,200,{factorId:result.id,secret:result.totp.secret,
+   message:'Add this secret to your authenticator app. Next enter the six-digit code to finish setup.'});
+ }catch{return send(response,403,{error:'Authenticator setup unavailable. Check your invitation and password, or contact the founder.'})}
+}
+export async function secureConfirmEnrollment(request,response){
+ if(!secureModeConfigured())return send(response,503,{error:'Secure Studio is not configured'});
+ if(!trustedOrigin(request))return send(response,403,{error:'Origin denied'});
+ if(!enrollAllowed(request))return send(response,429,{error:'Too many attempts'});
+ try{
+  const {form,token,user}=await verifiedInvitedUser(request);
+  const factorId=String(form?.factorId||''),code=String(form?.code||'');
+  if(!/^[a-f0-9-]{36}$/i.test(factorId)||!/^[0-9]{6}$/.test(code))throw Error('Invalid factor');
+  if(!user.factors?.some(f=>f.id===factorId&&f.factor_type==='totp'&&f.status==='unverified'))throw Error('Invalid factor');
+  const challenge=await supabase('/auth/v1/factors/'+factorId+'/challenge',{
+   method:'POST',headers:{Authorization:'Bearer '+token},body:'{}'
+  });
+  if(!challenge?.id)throw Error('Invalid challenge');
+  const result=await supabase('/auth/v1/factors/'+factorId+'/verify',{
+   method:'POST',headers:{Authorization:'Bearer '+token},
+   body:JSON.stringify({challenge_id:challenge.id,code})
+  });
+  if(jwtClaims(result?.access_token||'')?.aal!=='aal2')throw Error('Failed to verify');
+  return send(response,200,{ok:true,message:'Authenticator enrolled. You can now sign in to Studio.'});
+ }catch{return send(response,403,{error:'Authenticator verification failed. Check the current code and try again.'})}
+}
 export async function secureIdentity(request){
  if(!secureModeConfigured())return null;
  const sid=sidOf(request);if(!sid)return null;
