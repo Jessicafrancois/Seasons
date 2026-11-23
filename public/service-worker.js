@@ -1,5 +1,5 @@
 const CACHE_PREFIX = 'seasons-pwa-';
-const CACHE_NAME = CACHE_PREFIX + 'v8';
+const CACHE_NAME = CACHE_PREFIX + 'v9';
 const HOME = '/';
 const STATIC_FILES = [
   '/manifest.webmanifest',
@@ -17,6 +17,7 @@ const STATIC_FILES = [
   '/js/app.js',
   '/js/components/page-head.js',
   '/js/components/project-card.js',
+  '/js/components/reveal-tiles.js',
   '/js/components/season-hero.js',
   '/js/components/track-list.js',
   '/seasons/fall/content.js',
