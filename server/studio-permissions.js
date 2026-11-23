@@ -2,8 +2,8 @@
 // This module does not grant access on its own. Every request must first verify
 // the authenticated user, then load an active membership from the database.
 const ACTIONS = Object.freeze({
- 'Founder': ['studio.read','inquiries.read','inquiries.manage','inquiries.reply','inquiries.convert','opportunities.read','opportunities.manage','approvals.decide','agreements.manage','rights.activate','members.manage'],
- 'Studio Manager': ['studio.read','inquiries.read','inquiries.manage','inquiries.reply','opportunities.read','opportunities.manage'],
+ 'Founder': ['studio.read','editor.manage','inquiries.read','inquiries.manage','inquiries.reply','inquiries.convert','opportunities.read','opportunities.manage','approvals.decide','agreements.manage','rights.activate','members.manage'],
+ 'Studio Manager': ['studio.read','editor.manage','inquiries.read','inquiries.manage','inquiries.reply','opportunities.read','opportunities.manage'],
  'Reviewer': ['studio.read','inquiries.read','opportunities.read'],
  'Viewer': ['studio.read','inquiries.read','opportunities.read']
 });
