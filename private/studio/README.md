@@ -57,3 +57,38 @@ For the future inquiry inbox, configure `SUPABASE_URL` and `SUPABASE_SERVICE_ROL
 Run `npm test` and `node --check` against all changed JavaScript, or review the `Seasons Studio checks` GitHub workflow. Tests cover the canonical 14-route fixture, protected asset delivery, disabled integration behavior, draft guards and settings validation. Browser visual inspection and all connected-service integration tests remain necessary before deployment.
 
 This branch is a development implementation, not a production release.
+
+## Individual identity and founder permissions: staged foundation (Nov 23, 2026)
+
+The connected Seasons Supabase project now contains `public.seasons_studio_members`, keyed to `auth.users(id)`.
+This private registry holds `role`, `confidentiality_clearance`, `is_active` and invitation/audit metadata.
+RLS is enabled with no public read policies; the server-side service role is the only currently granted data-access role.
+No users or founder memberships have been fabricated.
+
+The server-only `server/studio-permissions.js` defines a **deny-by-default policy** for the planned
+Founder, Studio Manager, Reviewer, and Viewer roles. Founder Private records require a Founder role
+and Founder Private clearance. Replying and managing records are separate from making founder
+approval decisions, converting inquiries into opportunities, signing agreements, or activating rights.
+Tests are in `tests/studio-permissions.test.js`.
+
+**Not activated:** the current HTTP Basic gate in `server.js` does not yet check this membership
+registry. Do **not** mistake the existence of this table or policy module for live per-user authorization.
+Inquiries and Opportunities are still server-only/read-only under the existing basic gate, and their
+newly created protected readers are not yet wired into the modular Studio UI.
+
+### Safe cutover requirements
+
+1. Enroll a real founder account through Supabase Auth, with verified email and MFA appropriate to
+   the chosen authentication method. Never hand-write records into `auth.users`.
+2. Assign Founder membership through a trusted administrative operation after independently
+   verifying the account identity. No self-service Founder grants.
+3. Build a secure server-side session (HttpOnly, Secure, SameSite cookies; session expiry/revocation),
+   verify it on every Studio API request and resolve an active member from the private table.
+4. Apply `studioCan` to every server endpoint and filter every private record by clearance before
+   returning it. Protect audit trails, membership changes, and founder decision flows separately.
+5. Test unauthenticated requests, role downgrade/revocation, active session expiry, account mismatch,
+   Founder Private access denial, and all signed-document/rights state transitions.
+6. Remove the shared-password fallback before considering a public Studio deployment. Keep Studio
+   disabled when auth configuration or membership resolution fails.
+
+No email sending, signing, rights activation, or Notion sync is enabled by this foundation.
