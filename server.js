@@ -64,7 +64,7 @@ function sameOrigin(request){
  if(!origin||!host)return false;
  try{return new URL(origin).host===host && ['http:','https:'].includes(new URL(origin).protocol)}catch{return false}
 }
-createServer(async(request,response)=>{
+export async function handleRequest(request,response){
  try{
   const path=decodeURIComponent(new URL(request.url,'http://localhost').pathname);
   if(path==='/api/inquiries'&&request.method==='POST')return await submitInquiry(request,response);
@@ -248,4 +248,9 @@ createServer(async(request,response)=>{
  }catch{
   response.writeHead(404).end('Page unavailable');
  }
-}).listen(Number(process.env.PORT||3000),'0.0.0.0');
+}
+
+// Vercel imports handleRequest from its function; it must never bind a TCP port.
+if(process.env.VERCEL!=='1'){
+ createServer(handleRequest).listen(Number(process.env.PORT||3000),'0.0.0.0');
+}
