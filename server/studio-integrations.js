@@ -10,6 +10,7 @@ export function integrationInventory(){
  return {
   checkedAt:new Date().toISOString(),
   credentialValuesExposed:false,
+  setup:integrationSetup(),
   connections:[
    entry('notion','Notion','Editorial','Season chronology, references, project metadata and approved content.',
     notion?'configured':'not_configured',
@@ -38,4 +39,85 @@ export function integrationInventory(){
     'Choose the measurement policy and provider before collecting visitor data.')
   ]
  };
+}
+
+const setup = Object.freeze({
+ notion:{required:['NOTION_TOKEN'],portal:'https://www.notion.so/profile/integrations',help:'Create a Notion integration, copy its token into server secrets, then share your Seasons pages and databases with that integration.'},
+ supabase:{required:['SUPABASE_URL','SUPABASE_SERVICE_ROLE_KEY'],portal:'https://supabase.com/dashboard/projects',help:'Use your existing Seasons project URL and its server-only service-role key. Do not place this key in public code.'},
+ storage:{required:['SUPABASE_URL','SUPABASE_SERVICE_ROLE_KEY'],optional:['SEASONS_PRIVATE_BUCKET'],portal:'https://supabase.com/dashboard/projects',help:'Use the existing private bucket seasons-private-documents or configure SEASONS_PRIVATE_BUCKET. Verify RLS and object access separately.'},
+ email:{required:['SEASONS_EMAIL_PROVIDER','SEASONS_EMAIL_API_KEY'],portal:'https://resend.com/domains',help:'The supported credential check is Resend (SEASONS_EMAIL_PROVIDER=resend). Verify your domain in Resend before enabling email delivery.'},
+ spotify:{required:['SPOTIFY_CLIENT_ID','SPOTIFY_CLIENT_SECRET'],portal:'https://developer.spotify.com/dashboard',help:'Create a Spotify developer app and store client ID and secret on the server. This checks app-level access, not a listener login.'},
+ 'apple-music':{required:['APPLE_MUSIC_DEVELOPER_TOKEN'],portal:'https://developer.apple.com/documentation/applemusicapi',help:'Generate a valid Apple Music developer token in your Apple developer environment. User-specific MusicKit login is a separate feature.'},
+ analytics:{required:['PLAUSIBLE_SITE_ID','PLAUSIBLE_API_KEY'],portal:'https://plausible.io/settings',help:'Optional privacy-conscious Plausible site analytics. Create an API key and set your registered site ID.'}
+});
+export function integrationSetup(){
+ return Object.fromEntries(Object.entries(setup).map(([id,value])=>[id,{...value}]));
+}
+function has(id){
+ return (setup[id]?.required||[]).every(key=>Boolean(process.env[key]?.trim()));
+}
+const probeUrls=Object.freeze({
+ notion:'https://api.notion.com/v1/users/me',
+ email:'https://api.resend.com/domains',
+ 'apple-music':'https://api.music.apple.com/v1/catalog/us/charts?types=songs&limit=1'
+});
+async function statusOf(url,headers,options={}){
+ const res=await fetch(url,{method:options.method||'GET',headers,body:options.body,
+  redirect:'error',signal:AbortSignal.timeout(6500)});
+ return res.status;
+}
+// Read-only remote checks. Never return raw remote responses, tokens, identifiers or URLs.
+export async function testIntegration(id){
+ if(!Object.hasOwn(setup,id))return {id,status:'unsupported',message:'Unknown integration'};
+ if(!has(id))return {id,status:'not_configured',message:'Configure the required server secrets first.'};
+ try{
+  let status=0;
+  switch(id){
+   case 'notion':
+    status=await statusOf(probeUrls.notion,{
+     Authorization:'Bearer '+process.env.NOTION_TOKEN,'Notion-Version':'2025-09-03'});
+    break;
+   case 'supabase':
+    status=await statusOf(new URL('/rest/v1/seasons_inquiries?select=id&limit=0',process.env.SUPABASE_URL).href,{
+     apikey:process.env.SUPABASE_SERVICE_ROLE_KEY,
+     Authorization:'Bearer '+process.env.SUPABASE_SERVICE_ROLE_KEY});
+    break;
+   case 'storage':{
+    const bucket=process.env.SEASONS_PRIVATE_BUCKET||'seasons-private-documents';
+    if(!/^[a-z0-9][a-z0-9_-]{1,90}$/i.test(bucket))return {id,status:'invalid_config',message:'Invalid private bucket identifier.'};
+    status=await statusOf(new URL('/storage/v1/bucket/'+encodeURIComponent(bucket),process.env.SUPABASE_URL).href,{
+     apikey:process.env.SUPABASE_SERVICE_ROLE_KEY,
+     Authorization:'Bearer '+process.env.SUPABASE_SERVICE_ROLE_KEY});
+    break;
+   }
+   case 'email':
+    if(process.env.SEASONS_EMAIL_PROVIDER?.toLowerCase()!=='resend')
+     return {id,status:'unsupported',message:'The connection test currently supports Resend only.'};
+    status=await statusOf(probeUrls.email,{Authorization:'Bearer '+process.env.SEASONS_EMAIL_API_KEY});
+    break;
+   case 'spotify':{
+    const basic=Buffer.from(process.env.SPOTIFY_CLIENT_ID+':'+process.env.SPOTIFY_CLIENT_SECRET).toString('base64');
+    status=await statusOf('https://accounts.spotify.com/api/token',{
+      Authorization:'Basic '+basic,'Content-Type':'application/x-www-form-urlencoded'
+    },{method:'POST',body:'grant_type=client_credentials'});
+    break;
+   }
+   case 'apple-music':
+    status=await statusOf(probeUrls['apple-music'],{Authorization:'Bearer '+process.env.APPLE_MUSIC_DEVELOPER_TOKEN});
+    break;
+   case 'analytics':{
+    const site=process.env.PLAUSIBLE_SITE_ID;
+    if(!/^[a-z0-9][a-z0-9.-]{1,253}$/i.test(site))
+     return {id,status:'invalid_config',message:'Invalid analytics site identifier.'};
+    status=await statusOf('https://plausible.io/api/v1/stats/aggregate?site_id='+encodeURIComponent(site)+'&period=day&metrics=visitors',{
+      Authorization:'Bearer '+process.env.PLAUSIBLE_API_KEY});
+    break;
+   }
+  }
+  return status>=200&&status<300
+   ? {id,status:'verified',message:'Provider accepted the configured credentials. Content mapping and workflows may still be pending.'}
+   : {id,status:'failed',message:'Provider rejected this check or required permissions are missing (HTTP '+status+').'};
+ }catch{
+  return {id,status:'unreachable',message:'Connection could not be verified. Check the server configuration or provider availability.'};
+ }
 }
