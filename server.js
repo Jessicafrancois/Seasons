@@ -169,11 +169,11 @@ createServer(async(request,response)=>{
    const oauthMatch=path.match(/^\/studio\/oauth\/start\/(notion|spotify)$/);
    if(oauthMatch&&request.method==='POST'){
     if(mode!=='secure'||!requireManage(identity.member)||!csrfValid(request,identity))return json(response,403,{error:'Permission denied'});
-    return oauthStart(request,response,oauthMatch[1]);
+    return oauthStart(request,response,oauthMatch[1],identity);
    }
    if(path==='/studio/oauth/callback'&&request.method==='GET'){
     if(mode!=='secure'||!requireManage(identity.member))return json(response,403,{error:'Permission denied'});
-    return await oauthCallback(request,response,new URL(request.url,'http://localhost').searchParams);
+    return await oauthCallback(request,response,new URL(request.url,'http://localhost').searchParams,identity);
    }
    if(path==='/studio/api/integrations'){
     if(request.method!=='GET')return json(response,405,{error:'Method not allowed.'});
