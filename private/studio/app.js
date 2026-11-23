@@ -52,7 +52,31 @@ async function refresh(){
  }
  navigate(active);
 }
+async function showSessionControls(){
+ try{
+  const response=await fetch('/studio/api/session',{credentials:'same-origin',cache:'no-store'});
+  if(!response.ok)return;
+  const session=await response.json();
+  if(session.mode!=='supabase')return;
+  const holder=document.getElementById('connect-status')?.parentElement;
+  if(!holder || document.getElementById('studio-sign-out'))return;
+  const button=el('button','Sign out','button secondary');
+  button.id='studio-sign-out';button.type='button';
+  button.setAttribute('aria-label','Sign out of Seasons Studio');
+  button.addEventListener('click',async()=>{
+   button.disabled=true;
+   try{
+    const result=await fetch('/studio/auth/logout',{method:'POST',credentials:'same-origin'});
+    if(!result.ok)throw Error('Unable to end this browser session');
+    location.replace('/studio/login');
+   }catch(error){connect.textContent=error.message;button.disabled=false}
+  });
+  holder.append(button);
+  connect.textContent='Studio / '+session.role;
+ }catch{}
+}
 document.getElementById('refresh').addEventListener('click',refresh);
 window.addEventListener('hashchange',()=>navigate(location.hash.slice(1)));
 active=location.hash.slice(1)||'overview';
 refresh();
+showSessionControls();
