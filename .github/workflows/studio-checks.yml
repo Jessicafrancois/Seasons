@@ -21,6 +21,7 @@ jobs:
           node --check server/studio-operations.js
           node --check server/studio-centers.js
           node --check server/studio-integrations.js
+          node --check server/studio-oauth.js
           node --check server/public-document.js
           node --check opening-api.js
           node --check server/studio-drafts.js
