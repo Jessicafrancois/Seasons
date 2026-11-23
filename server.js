@@ -114,8 +114,11 @@ createServer(async(request,response)=>{
      return json(response,403,{error:'Sign in again to manage credentials'});
     if(!vaultConfigured())return json(response,503,{error:'Credential vault is not configured'});
     if(request.method==='POST'){
-     const {provider,credentials}=await readJson(request,10000);
-     const result=await vaultSave(provider,credentials,identity);
+     let payload;
+     try{payload=await readJson(request,10000)}
+     catch{return json(response,400,{error:'Invalid credential form'})}
+     if(!payload||typeof payload!=='object')return json(response,400,{error:'Invalid credential form'});
+     const result=await vaultSave(payload.provider,payload.credentials,identity);
      return json(response,result.status,result);
     }
     return json(response,405,{error:'Method not allowed'});
