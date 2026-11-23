@@ -162,3 +162,35 @@ body.reduced .editorial-home-image{animation:none!important}
 @media(prefers-reduced-motion:reduce){
  .home-feature-tile-art,.home-feature-tile-arrow{transition:none!important}
 }
+
+
+/* Scroll-reveal: tiles rise one by one in reading order. Base tiles stay visible
+   if JS is unavailable; no card becomes permanently hidden without a controller. */
+.home-feature-grid.is-scroll-animated .home-feature-tile{
+  --tile-rest-y:0px;
+  opacity:0;
+  transform:translate3d(0,calc(var(--tile-rest-y) + 94px),0);
+  transition:transform .8s cubic-bezier(.17,.73,.27,1),opacity .8s ease,box-shadow .3s ease;
+}
+.home-feature-grid.is-scroll-animated .home-feature-tile--2,
+.home-feature-grid.is-scroll-animated .home-feature-tile--4{--tile-rest-y:28px}
+.home-feature-grid.is-scroll-animated .home-feature-tile.is-revealed{
+  opacity:1;
+  transform:translate3d(0,var(--tile-rest-y),0);
+}
+@media(max-width:750px){
+  .home-feature-grid.is-scroll-animated .home-feature-tile--2,
+  .home-feature-grid.is-scroll-animated .home-feature-tile--4{--tile-rest-y:15px}
+}
+@media(max-width:490px){
+  .home-feature-grid.is-scroll-animated .home-feature-tile--2,
+  .home-feature-grid.is-scroll-animated .home-feature-tile--4{--tile-rest-y:0px}
+}
+@media(prefers-reduced-motion:reduce){
+  .home-feature-grid.is-scroll-animated .home-feature-tile{
+    opacity:1;transform:translate3d(0,var(--tile-rest-y),0);transition:none!important;
+  }
+}
+body.reduced .home-feature-grid.is-scroll-animated .home-feature-tile{
+  opacity:1;transform:translate3d(0,var(--tile-rest-y),0);transition:none!important;
+}
