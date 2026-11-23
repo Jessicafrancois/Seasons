@@ -10,7 +10,8 @@ const secretPresent=()=>/^[a-f0-9]{64}$/i.test(process.env.STUDIO_SESSION_CSRF_K
 export function secureModeConfigured(){
  return process.env.STUDIO_AUTH_MODE==='secure'&&secretPresent()&&
   Boolean(process.env.SUPABASE_URL&&process.env.SUPABASE_SERVICE_ROLE_KEY&&process.env.SUPABASE_PUBLISHABLE_KEY)
-  &&/^https:\/\//.test(process.env.SUPABASE_URL);
+  &&/^https:\/\//.test(process.env.SUPABASE_URL)
+  &&(process.env.NODE_ENV!=='production'||/^https:\/\/[a-z0-9.-]+(?::443)?$/i.test(process.env.STUDIO_PUBLIC_ORIGIN||''));
 }
 export function studioAuthMode(){
  if(process.env.STUDIO_AUTH_MODE==='secure')return 'secure';
