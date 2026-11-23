@@ -5,6 +5,7 @@ import { timingSafeEqual } from 'node:crypto';
 import { overview } from './server/studio-data.js';
 import { publicDocument } from './server/public-document.js';
 import { operationalData, submitInquiry } from './server/studio-operations.js';
+import { centerLists, inquiryDetails, opportunityDetails } from './server/studio-centers.js';
 
 const root = resolve(import.meta.dirname, 'public');
 const studioDocument = resolve(import.meta.dirname, 'private/studio/index.html');
@@ -60,6 +61,19 @@ createServer(async (request, response) => {
           return json(response, 200, { ...core, operations: ops });
         } catch {
           return json(response, 503, { error: 'Operations data is temporarily unavailable.' });
+        }
+      }
+      if (path === '/studio/api/centers' || /^\\/studio\\/api\\/(inquiries|opportunities)\\/[a-f0-9-]+$/i.test(path)) {
+        if (request.method !== 'GET') return json(response, 405, { error: 'Method not allowed' });
+        try {
+          if (path === '/studio/api/centers') return json(response, 200, await centerLists());
+          const match = path.match(/^\\/studio\\/api\\/(inquiries|opportunities)\\/([a-f0-9-]+)$/i);
+          const data = match[1] === 'inquiries'
+            ? await inquiryDetails(match[2])
+            : await opportunityDetails(match[2]);
+          return data ? json(response, 200, data) : json(response, 404, { error: 'Record not found' });
+        } catch {
+          return json(response, 503, { error: 'Studio records are temporarily unavailable.' });
         }
       }
       if (path !== '/studio' && path !== '/studio/') return json(response, 404, { error: 'Not found' });
