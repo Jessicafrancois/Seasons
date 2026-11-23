@@ -1,3 +1,4 @@
+import { openingApi } from './opening-api.js';
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { resolve, sep, extname } from 'node:path';
@@ -13,6 +14,23 @@ const studioRoot=resolve(import.meta.dirname,'private/studio');
 const types={'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.json':'application/json; charset=utf-8','.webp':'image/webp','.mp3':'audio/mpeg','.png':'image/png','.jpeg':'image/jpeg','.woff2':'font/woff2','.webmanifest':'application/manifest+json'};
 const studioAssets=new Set(['/app.js','/components/ui.js','/pages/workspace.js','/pages/inquiry-center.js','/pages/opportunities.js','/editor/opening.js','/styles/studio.css','/styles/opportunities.css','/styles/inquiry-center.css']);
 
+createServer(async (request, response) => {
+  try {
+    const path = decodeURIComponent(new URL(request.url, 'http://localhost').pathname);
+    if (path.startsWith('/api/')) return await openingApi(request,response,path);
+    if (path === '/studio/') return response.writeHead(302,{Location:'/studio'}).end();
+    const page = path === '/' || /^\/projects\/[a-z0-9-]+\/?$/.test(path);
+    const file = resolve(root, '.' + (page ? '/index.html' : path === '/studio' ? '/studio.html' : path));
+    if (!file.startsWith(root + sep)) {
+      response.writeHead(404).end();
+      return;
+    }
+    const content = await readFile(file);
+    const headers = { 'Content-Type': types[extname(file)] ?? 'application/octet-stream' };
+    if (path === '/service-worker.js') headers['Cache-Control'] = 'no-cache';
+    response.writeHead(200, headers).end(content);
+  } catch {
+    response.writeHead(404).end('Page unavailable');
 function constantEquals(left,right){
  const a=Buffer.from(left),b=Buffer.from(right);
  return a.length===b.length&&timingSafeEqual(a,b);

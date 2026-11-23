@@ -25,3 +25,15 @@ The Fall design is the UI reference. Use the current placeholder content to chec
 - **The app renders a published content model.** Keep the page and component code independent of the source. When connecting Notion, map its published records server-side and keep credentials on the server. Keep Supabase privileged keys on the server as well. The app shell and bundled fixtures support offline use. Remote media can be handled separately according to its access rules.
 
 Live connections are pending. The existing local Fall module is the UI fixture until the Notion databases and Supabase project are selected.
+
+## Notion-backed Opening Studio
+
+The installed PWA plays the opening on arrival at the homepage. It uses the active chapter from `public/js/content/index.js`. Deep links open directly. Use `/studio` to preview and save the opening for Fall, Winter, Spring, or Summer. The same renderer drives both views.
+
+1. In Notion, open **Seasons → Opening Settings**, then connect a Notion integration with read and update content access to that database. The four existing row IDs are mapped in `opening-api.js`.
+2. Set `NOTION_TOKEN` to the integration secret and `SEASONS_STUDIO_PASSWORD` to a unique random access key in the Node server's environment. Use HTTPS in production. Enter only the studio access key in the dashboard.
+3. To swap photos, upload the images to your media storage and paste their publicly readable HTTPS URLs into the **Photos** field in Notion or the studio. Leave the field blank to use the bundled opening photos. Keep the image URLs stable.
+
+**Save to Notion** writes the active row immediately. You can edit that row directly in Notion as well. Direct edits can take up to 30 seconds to show on a new home visit. A save checks for changes made since the dashboard loaded the record. The offline PWA uses the bundled opening.
+
+This integration covers opening settings. Existing chapter text, projects, and tracks still use their bundled modules. Deploy this version to a host that runs `npm start` so the Notion API routes are available.
