@@ -37,7 +37,7 @@ test('protected Studio and inquiry integration fail closed', async () => {
   assert.equal(legacyLogin.status,302);
   assert.equal(legacyLogin.headers.get('location'),'/studio/');
   const footer=await fetch(base+'/');
-  assert.match(await footer.text(),/href="\\/studio\\/" aria-label="Seasons Studio sign in"/);
+  assert.match(await footer.text(), /href="\/studio\/" aria-label="Seasons Studio sign in"/);
   const denied=await fetch(base+'/studio/api/overview');
   assert.equal(denied.status,401);
   const auth='Basic '+Buffer.from('local_test_owner:local_test_unique_password').toString('base64');
