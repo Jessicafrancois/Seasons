@@ -18,7 +18,7 @@ button{width:100%;background:#293b32;color:white;padding:14px;border:0;border-ra
 button:disabled{opacity:.7}input:focus-visible,button:focus-visible{outline:2px solid #536e5c;outline-offset:2px}
 #status{min-height:22px}footer{margin-top:24px;font-size:12px;color:#7a7f76;text-align:center}
 a{color:inherit}
-</style>
+details{margin-top:24px;border-top:1px solid #e2e4dc;padding-top:18px}summary{cursor:pointer;font-size:12px;color:#4c6654}details button{margin-top:16px}.totp-secret{display:block;background:#eff2ed;border-radius:8px;padding:12px;word-break:break-all;font-size:12px}#enroll-result[hidden]{display:none}</style>
 <script defer src="/studio/login.js"></script>
 </head>
 <body><main>
@@ -32,5 +32,24 @@ a{color:inherit}
 <button type="submit">Enter Studio</button>
 <p id="status" role="status" aria-live="polite"></p>
 </form>
+<details id="authenticator-setup">
+<summary>First time here? Set up your authenticator</summary>
+<p>For an invited, verified Studio account. Enter your email and password to generate a private authenticator setup code.</p>
+<form id="enroll-form">
+<label>Email<input name="email" type="email" autocomplete="username" maxlength="254" required></label>
+<label>Password<input name="password" type="password" autocomplete="current-password" required></label>
+<button type="submit">Generate authenticator setup</button>
+</form>
+<section id="enroll-result" hidden>
+<p>Copy this secret into your authenticator app. Never share it.</p>
+<code id="totp-secret" class="totp-secret"></code>
+<form id="confirm-form">
+<input type="hidden" name="factorId">
+<label>Six-digit authenticator code<input name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" minlength="6" maxlength="6" required></label>
+<button type="submit">Verify and finish setup</button>
+</form>
+</section>
+<p id="enroll-status" role="status" aria-live="polite"></p>
+</details>
 <footer><a href="/">Return to Seasons</a></footer>
 </main></body></html>
