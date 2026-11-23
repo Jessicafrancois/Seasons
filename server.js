@@ -4,79 +4,98 @@ import { resolve, sep, extname } from 'node:path';
 import { timingSafeEqual } from 'node:crypto';
 import { overview } from './server/studio-data.js';
 import { operationalData, submitInquiry } from './server/studio-operations.js';
+import { readDraft, saveDraft } from './server/studio-drafts.js';
 
-const root = resolve(import.meta.dirname, 'public');
-const studioDocument = resolve(import.meta.dirname, 'private/studio/index.html');
-const types = { '.html': 'text/html; charset=utf-8', '.css': 'text/css', '.js': 'text/javascript', '.json': 'application/json', '.webp': 'image/webp', '.mp3': 'audio/mpeg', '.png': 'image/png', '.jpeg': 'image/jpeg', '.woff2': 'font/woff2', '.webmanifest': 'application/manifest+json' };
+const root=resolve(import.meta.dirname,'public');
+const studioRoot=resolve(import.meta.dirname,'private/studio');
+const types={'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.json':'application/json; charset=utf-8','.webp':'image/webp','.mp3':'audio/mpeg','.png':'image/png','.jpeg':'image/jpeg','.woff2':'font/woff2','.webmanifest':'application/manifest+json'};
+const studioAssets=new Set(['/app.js','/components/ui.js','/pages/workspace.js','/pages/inquiry-center.js','/pages/opportunities.js','/editor/opening.js','/styles/studio.css','/styles/opportunities.css','/styles/inquiry-center.css']);
 
-function equalSecret(actual, expected) {
-  const a = Buffer.from(actual);
-  const b = Buffer.from(expected);
-  return a.length === b.length && timingSafeEqual(a, b);
+function constantEquals(left,right){
+ const a=Buffer.from(left),b=Buffer.from(right);
+ return a.length===b.length&&timingSafeEqual(a,b);
 }
-function studioAuthorized(request) {
-  const authorization = request.headers.authorization || '';
-  if (!authorization.startsWith('Basic ')) return false;
-  try {
-    const decoded = Buffer.from(authorization.slice(6), 'base64').toString('utf8');
-    const colon = decoded.indexOf(':');
-    if (colon < 0) return false;
-    return equalSecret(decoded.slice(0, colon), process.env.STUDIO_USERNAME) &&
-      equalSecret(decoded.slice(colon + 1), process.env.STUDIO_PASSWORD);
-  } catch { return false; }
+function authorized(request){
+ const auth=request.headers.authorization||'';
+ if(!auth.startsWith('Basic '))return false;
+ try{
+  const raw=Buffer.from(auth.slice(6),'base64').toString('utf8'),colon=raw.indexOf(':');
+  if(colon===-1)return false;
+  return constantEquals(raw.slice(0,colon),process.env.STUDIO_USERNAME)&&constantEquals(raw.slice(colon+1),process.env.STUDIO_PASSWORD);
+ }catch{return false;}
 }
-function json(response, status, data) {
-  response.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' });
-  response.end(JSON.stringify(data));
+function json(response,status,payload){
+ response.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});
+ response.end(JSON.stringify(payload));
 }
-function protectStudio(request, response) {
-  response.setHeader('Cache-Control', 'no-store');
-  response.setHeader('X-Content-Type-Options', 'nosniff');
-  response.setHeader('X-Frame-Options', 'DENY');
-  response.setHeader('Referrer-Policy', 'no-referrer');
-  if (!process.env.STUDIO_USERNAME || !process.env.STUDIO_PASSWORD) {
-    json(response, 503, { error: 'Seasons Studio is not configured.' });
-    return false;
+function protect(request,response){
+ response.setHeader('Cache-Control','no-store');
+ response.setHeader('X-Content-Type-Options','nosniff');
+ response.setHeader('X-Frame-Options','DENY');
+ response.setHeader('Referrer-Policy','no-referrer');
+ response.setHeader('Cross-Origin-Resource-Policy','same-origin');
+ if(!process.env.STUDIO_USERNAME||!process.env.STUDIO_PASSWORD){
+  json(response,503,{error:'Seasons Studio is not configured.'});return false;
+ }
+ if(!authorized(request)){
+  response.setHeader('WWW-Authenticate','Basic realm="Seasons Studio"');
+  json(response,401,{error:'Studio authentication required.'});return false;
+ }
+ return true;
+}
+async function readJson(request,maxBytes=8192){
+ let text='';
+ for await(const chunk of request){
+  text+=chunk.toString('utf8');
+  if(Buffer.byteLength(text)>maxBytes)throw Object.assign(Error('Too large'),{status:413});
+ }
+ try{return JSON.parse(text)}catch{throw Object.assign(Error('Invalid JSON'),{status:400})}
+}
+function sameOrigin(request){
+ const origin=request.headers.origin,host=request.headers.host;
+ if(!origin||!host)return false;
+ try{return new URL(origin).host===host && ['http:','https:'].includes(new URL(origin).protocol)}catch{return false}
+}
+createServer(async(request,response)=>{
+ try{
+  const path=decodeURIComponent(new URL(request.url,'http://localhost').pathname);
+  if(path==='/api/inquiries'&&request.method==='POST')return await submitInquiry(request,response);
+  if(path==='/studio'||path==='/studio/'||path.startsWith('/studio/')){
+   if(!protect(request,response))return;
+   if(path==='/studio/api/overview'&&request.method==='GET'){
+    try{return json(response,200,{...overview(),operations:await operationalData()})}
+    catch{return json(response,503,{error:'Operations data temporarily unavailable.'})}
+   }
+   if(path==='/studio/api/draft'&&request.method==='GET'){
+    try{return json(response,200,await readDraft())}
+    catch{return json(response,503,{error:'Draft data unavailable.'})}
+   }
+   if(path==='/studio/api/draft'&&request.method==='PUT'){
+    if(!sameOrigin(request)||request.headers['x-seasons-studio']!=='draft-editor')return json(response,403,{error:'Write request denied.'});
+    if(!String(request.headers['content-type']||'').startsWith('application/json'))return json(response,415,{error:'Expected JSON.'});
+    try{return json(response,200,await saveDraft(await readJson(request)))}
+    catch(error){return json(response,error.status|| (error.message.startsWith('Invalid')?422:503),{error:error.message.startsWith('Invalid')?error.message:'Local draft storage unavailable.'})}
+   }
+   if(request.method!=='GET')return json(response,405,{error:'Method not allowed.'});
+   const asset=path.startsWith('/studio/assets/')?path.slice('/studio/assets'.length):null;
+   if(asset!==null&&!studioAssets.has(asset))return json(response,404,{error:'Not found.'});
+   if(path!=='/studio'&&path!=='/studio/'&&asset===null)return json(response,404,{error:'Not found.'});
+   response.setHeader('Content-Security-Policy',"default-src 'none'; connect-src 'self'; script-src 'self'; style-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'");
+   const file=asset===null?resolve(studioRoot,'index.html'):resolve(studioRoot,'.'+asset);
+   if(!file.startsWith(studioRoot+sep))return json(response,404,{error:'Not found.'});
+   const contents=await readFile(file);
+   response.writeHead(200,{'Content-Type':types[extname(file)]||'application/octet-stream'}).end(contents);
+   return;
   }
-  if (!studioAuthorized(request)) {
-    response.setHeader('WWW-Authenticate', 'Basic realm="Seasons Studio"');
-    json(response, 401, { error: 'Studio authentication required.' });
-    return false;
-  }
-  return true;
-}
-createServer(async (request, response) => {
-  try {
-    const path = decodeURIComponent(new URL(request.url, 'http://localhost').pathname);
-    if (path === '/api/inquiries' && request.method === 'POST') return await submitInquiry(request, response);
-    if (path === '/studio' || path === '/studio/' || path.startsWith('/studio/api/')) {
-      if (!protectStudio(request, response)) return;
-      if (path === '/studio/api/overview') {
-        if (request.method !== 'GET') return json(response, 405, { error: 'Method not allowed' });
-        try {
-          const core = overview();
-          const ops = await operationalData();
-          return json(response, 200, { ...core, operations: ops });
-        } catch {
-          return json(response, 503, { error: 'Operations data is temporarily unavailable.' });
-        }
-      }
-      if (path !== '/studio' && path !== '/studio/') return json(response, 404, { error: 'Not found' });
-      if (request.method !== 'GET') return json(response, 405, { error: 'Method not allowed' });
-      response.setHeader('Content-Security-Policy', "default-src 'none'; connect-src 'self'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'");
-      const html = await readFile(studioDocument);
-      response.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' }).end(html);
-      return;
-    }
-    if (path.startsWith('/api/') || request.method !== 'GET') return response.writeHead(404).end('Page unavailable');
-    const page = path === '/' || /^\/projects\/[a-z0-9-]+\/?$/.test(path);
-    const file = resolve(root, '.' + (page ? '/index.html' : path));
-    if (!file.startsWith(root + sep)) return response.writeHead(404).end();
-    const body = await readFile(file);
-    const headers = { 'Content-Type': types[extname(file)] ?? 'application/octet-stream' };
-    if (path === '/service-worker.js') headers['Cache-Control'] = 'no-cache';
-    response.writeHead(200, headers).end(body);
-  } catch {
-    response.writeHead(404).end('Page unavailable');
-  }
-}).listen(Number(process.env.PORT || 3000), '0.0.0.0');
+  if(path.startsWith('/api/')||request.method!=='GET')return response.writeHead(404).end('Page unavailable');
+  const page=path==='/'||/^\/projects\/[a-z0-9-]+\/?$/.test(path);
+  const file=resolve(root,'.'+(page?'/index.html':path));
+  if(!file.startsWith(root+sep))return response.writeHead(404).end();
+  const body=await readFile(file);
+  const headers={'Content-Type':types[extname(file)]??'application/octet-stream'};
+  if(path==='/service-worker.js')headers['Cache-Control']='no-cache';
+  response.writeHead(200,headers).end(body);
+ }catch{
+  response.writeHead(404).end('Page unavailable');
+ }
+}).listen(Number(process.env.PORT||3000),'0.0.0.0');
