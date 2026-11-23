@@ -129,6 +129,24 @@ export function renderIntegrations(root,data,inventory){
   const authorization=oauth.providers?.[id];
   if(oauth.connections?.[id]?.connected){
    instruction.append(note('Connected account: '+oauth.connections[id].label+'. Your connection has been saved securely. Other workflows may require separate setup.'));
+   const remove=button('Disconnect from Studio',async()=>{
+    if(!confirm('Remove the saved '+record.name+' connection from Seasons Studio?'))return;
+    remove.disabled=true;result.textContent='Removing saved connection…';
+    try{
+     const res=await fetch('/studio/api/oauth/connections/'+id,{
+      method:'DELETE',credentials:'same-origin',headers:{'X-Seasons-Studio':'connection-remove'}
+     });
+     const body=await res.json();
+     if(!res.ok||!body.ok)throw Error('Removal failed');
+     delete oauth.connections[id];
+     const chip=cards.querySelector('[data-connection="'+id+'"] .integration-tile-state');
+     if(chip)chip.textContent='Not connected';
+     modal.close();launch(id);
+     result.textContent=body.message;
+    }catch{result.textContent='Could not remove the connection. Try again.'}
+    finally{remove.disabled=false}
+   },true);
+   buttons.append(remove);
   }else if(authorization?.available){
    instruction.append(note('Your account authorization will open on the provider website. Review its permission screen and select the content you wish to share.'));
    const connect=button('Continue to '+record.name,()=>{location.assign('/studio/oauth/start/'+id)});
