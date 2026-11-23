@@ -227,9 +227,10 @@ export function renderIntegrations(root,data,inventory,session,vault,onUpdated){
  root.append(foot);
  connectionStates();
 }
-export function renderSystem(root,data,draft){const card=section('System & Security','Development');
-item(card,'Current access','Temporary server-side Basic authentication. Replace before production.');
+export function renderSystem(root,data,draft,session){const card=section('System & Security',session?.secure?'Individual sign-in':'Development');
+item(card,'Current access',session?.secure?'Individual Supabase Auth account, MFA-verified membership, revocable server session':'Temporary Basic authentication for trusted local testing only.');
+item(card,'Current role',session?.role||'Unavailable');
 item(card,'Draft storage',draft?.enabled?'Local development file persistence enabled':'Disabled. Set STUDIO_LOCAL_DRAFTS=true in local development.');
 item(card,'Operations API',data?'Available':'Unavailable');
-card.append(note('Production login, MFA, rate limits, CSRF safeguards for all privileged writes, audit logs, and deployment review are still required.',true));root.append(card);}
+card.append(note('Before production activation: verify shared rate limiting, deployment runtime, audit monitoring, MFA recovery, token rotation and an independent security review.',true));root.append(card);}
 export function renderSettings(root,draft){const card=section('Workspace settings','Read-only');item(card,'Active editor','Opening grid');item(card,'Draft capability',draft?.enabled?'Local-only draft storage enabled':'Unavailable');card.append(note('Account preferences and organization roles will be enabled after authentication work.'));root.append(card);}
