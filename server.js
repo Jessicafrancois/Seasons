@@ -8,7 +8,7 @@ import { publicDocument } from './server/public-document.js';
 import { operationalData, submitInquiry } from './server/studio-operations.js';
 import { centerLists, inquiryDetails, opportunityDetails } from './server/studio-centers.js';
 import { readDraft, saveDraft } from './server/studio-drafts.js';
-import { integrationInventory } from './server/studio-integrations.js';
+import { integrationInventory, testIntegration } from './server/studio-integrations.js';
 
 const root=resolve(import.meta.dirname,'public');
 const studioRoot=resolve(import.meta.dirname,'private/studio');
@@ -71,6 +71,14 @@ createServer(async(request,response)=>{
   }
   if(path==='/studio'||path==='/studio/'||path.startsWith('/studio/')){
    if(!protect(request,response))return;
+   const integrationTest=path.match(/^\/studio\/api\/integrations\/([a-z-]+)\/test$/);
+   if(integrationTest){
+    if(request.method!=='POST')return json(response,405,{error:'Method not allowed.'});
+    if(!sameOrigin(request)||request.headers['x-seasons-studio']!=='integration-check')
+     return json(response,403,{error:'Request denied.'});
+    const result=await testIntegration(integrationTest[1]);
+    return json(response,200,result);
+   }
    if(path==='/studio/api/integrations'){
     if(request.method!=='GET')return json(response,405,{error:'Method not allowed.'});
     return json(response,200,integrationInventory());
