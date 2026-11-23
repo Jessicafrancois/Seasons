@@ -26,7 +26,7 @@ test('immersive design is scoped to home route and stylesheet is linked',async()
 
 test('PWA activates fresh homepage assets rather than stale cached modules',async()=>{
  const sw=await readFile(new URL('../public/service-worker.js',import.meta.url),'utf8');
- assert.match(sw,/CACHE_PREFIX \+ 'v8'/);
+ assert.match(sw,/CACHE_PREFIX \+ 'v9'/);
  assert.match(sw,/\/styles\/home-editorial\.css/);
  assert.match(sw,/\/js\/pages\/home\.js/);
 });
@@ -52,4 +52,20 @@ test('home replaces old selected explorations heading with four linked tiles',()
  assert.equal((rendered.match(/class="home-feature-tile home-feature-tile--/g)||[]).length,4);
  assert.doesNotMatch(rendered,/Selected explorations|01 \/ Selected explorations/);
  assert.match(rendered,/href="#\/seasons\/fall"/);
+});
+
+test('tile reveal is initialized on home route and uses ordered viewport observation',async()=>{
+ const read=p=>readFile(new URL('../'+p,import.meta.url),'utf8');
+ const [app,observer,css,serviceWorker]=await Promise.all([
+  read('public/js/app.js'),read('public/js/components/reveal-tiles.js'),
+  read('public/styles/home-editorial.css'),read('public/service-worker.js')
+ ]);
+ assert.match(app,/initHomeTileReveal\(\$\('#app'\)\)/);
+ assert.match(app,/cleanupHomeTiles\(\)/);
+ assert.match(observer,/new IntersectionObserver/);
+ assert.match(observer,/tiles\.indexOf\(a\.target\) - tiles\.indexOf\(b\.target\)/);
+ assert.match(observer,/nextReveal = start \+ 240/);
+ assert.match(observer,/prefers-reduced-motion: reduce/);
+ assert.match(css,/\.home-feature-tile\.is-revealed/);
+ assert.match(serviceWorker,/\/js\/components\/reveal-tiles\.js/);
 });
