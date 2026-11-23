@@ -42,6 +42,10 @@ test('protected Studio and inquiry integration fail closed', async () => {
   assert.equal(studio.status,200);
   const html=await studio.text();
   assert.match(html,/studio-nav/);
+  assert.equal((html.match(/<!doctype html>/gi)||[]).length,1);
+  assert.equal((html.match(/<html\b/gi)||[]).length,1);
+  assert.doesNotMatch(html,/<script(?![^>]*\bsrc=)[^>]*>/i);
+  assert.doesNotMatch(html,/<style\b/i);
   assert.match(html,/\/studio\/assets\/app\.js/);
   const response=await fetch(base+'/studio/api/overview',{headers:{Authorization:auth}});
   assert.equal(response.status,200);
