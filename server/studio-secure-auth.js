@@ -1,5 +1,6 @@
 import {createHash,createHmac,randomBytes,timingSafeEqual} from 'node:crypto';
 import {studioCan,studioMembershipValid} from './studio-permissions.js';
+import {isIP} from 'node:net';
 
 const COOKIE='seasons_studio_sid';
 const IDLE_MS=30*60*1000,ABS_MS=8*60*60*1000;
@@ -45,7 +46,11 @@ async function table(path,init={}){return supabase('/rest/v1/'+path,init,true)}
 async function sharedThrottle(request,purpose,limit){
  // Never store raw IPs or account identifiers in Postgres. The identifier
  // is HMACed with a server-only key and has a purpose-specific namespace.
- const peer=request.socket?.remoteAddress||'unknown';
+ // Vercel replaces X-Forwarded-For at its trusted proxy boundary.
+ // In local mode, ignore forwarding headers supplied by untrusted clients.
+ const forwarded=process.env.VERCEL==='1'?
+  String(request.headers['x-forwarded-for']||'').split(',')[0].trim():'';
+ const peer=isIP(forwarded)?forwarded:request.socket?.remoteAddress||'unknown';
  const key=createHmac('sha256',Buffer.from(process.env.STUDIO_SESSION_CSRF_KEY,'hex'))
   .update('studio-auth:'+purpose+':'+peer).digest('hex');
  try{
