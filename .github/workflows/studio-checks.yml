@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - feature/seasons-studio-foundation
+      - feature/studio-modular-workspace
   pull_request:
 jobs:
   verify:
@@ -17,6 +18,11 @@ jobs:
           node --check server.js
           node --check server/studio-data.js
           node --check server/studio-operations.js
+          node --check server/studio-drafts.js
+          node --check private/studio/app.js
+          node --check private/studio/components/ui.js
+          node --check private/studio/pages/workspace.js
+          node --check private/studio/editor/opening.js
           node --check public/js/app.js
       - name: Run Studio integration tests
         run: npm test
