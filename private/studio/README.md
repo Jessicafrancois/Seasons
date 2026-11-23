@@ -105,7 +105,7 @@ The Integrations screen is now a clickable service directory. Select any service
 ```text
 STUDIO_OAUTH_ENABLED=true
 STUDIO_OAUTH_ORIGIN=https://YOUR-CODESPACE-FORWARDED-PORT-3000-URL
-STUDIO_OAUTH_ENCRYPTION_KEY=<64 random hex characters>
+STUDIO_SESSION_CSRF_KEY=<64 random hex characters>
 SUPABASE_URL=<your existing Seasons Supabase URL>
 SUPABASE_SERVICE_ROLE_KEY=<server-only key>
 NOTION_OAUTH_CLIENT_ID=<public Notion integration client ID>
@@ -120,6 +120,65 @@ For Notion: create a **public** Notion integration with the required capabilitie
 
 Click **Continue to Notion** or **Continue to Spotify** from the permission dialog. On success, Studio stores encrypted access/refresh tokens and displays the account's connection status. The **Disconnect from Studio** action removes stored tokens, but does not revoke the grant at the provider; use the provider's connected-app settings for complete revocation.
 
-**Safety:** `STUDIO_OAUTH_ENABLED` is ineffective in `NODE_ENV=production` while Studio uses shared Basic authentication. The complete production access upgrade (individual Supabase Auth login, MFA, hardened sessions and CSRF/security review) must precede activation of OAuth in a public-facing administrative Studio. The UI may be viewed on the deployed site, but it will explain that real account authorization needs configuration or the secure login upgrade.
+**Safety:** `STUDIO_OAUTH_ENABLED` is ineffective until `STUDIO_AUTH_MODE=secure` is configured with individual MFA-verified sessions and the versioned encryption keyring. The complete production access upgrade (individual Supabase Auth login, MFA, hardened sessions and CSRF/security review) must precede activation of OAuth in a public-facing administrative Studio. The UI may be viewed on the deployed site, but it will explain that real account authorization needs configuration or the secure login upgrade.
 
 Provider authentication success does not synchronize Notion content or publish a release. Those remain separate, explicit workflows. The server does not return raw OAuth tokens to the browser.
+
+## Production security foundation: staged on main (2026-11-23)
+
+The application now includes opt-in individual authentication, TOTP enrollment and challenge verification, server-revocable opaque sessions, permission checks, CSRF validation, and founder-only encrypted credential entry.
+
+**Do not enable on a public production deployment without passing the security checklist and reviewing your actual Node deployment architecture.** The former Basic login may still operate in a trusted Codespace development environment. The production default denies Studio when the secure mode is not configured. Never set `STUDIO_AUTH_MODE=local-basic` in production.
+
+### 1. Provision the first founder identity
+
+Use the **existing Seasons Supabase project**. From Authentication → Users, invite or create your own account with a verified email. Enable **TOTP MFA** in the Supabase Auth settings. Create an active membership only after verifying the real Auth user ID:
+
+```sql
+insert into public.seasons_studio_members
+ (user_id, role, confidentiality_clearance, is_active)
+values ('<verified-auth-user-uuid>', 'Founder', 'Founder Private', true);
+```
+
+Replace the placeholder with the actual verified `auth.users.id`. Never insert directly into `auth.users`, and never grant a membership based only on an unverified email. Initially, public Studio registration is disabled. To enroll TOTP, open `/studio/login`, select **First time here? Set up your authenticator**, enter your own credentials, copy the provided one-time authenticator secret into your authenticator app, and verify its current six-digit code. Then sign in normally.
+
+### 2. Configure private server secrets
+
+Set these secrets in Codespaces and in your **actual server runtime** (which may differ from the frontend hosting deployment). Restart or redeploy the runtime after saving them:
+
+```text
+STUDIO_AUTH_MODE=secure
+STUDIO_PUBLIC_ORIGIN=https://your-real-studio-domain
+STUDIO_SESSION_CSRF_KEY=<independent 64-hex-character random value>
+SUPABASE_URL=https://YOUR-PROJECT.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=<private server-side credential>
+SUPABASE_PUBLISHABLE_KEY=<Supabase publishable key>
+STUDIO_VAULT_ACTIVE_KEY_ID=key2026
+STUDIO_VAULT_KEYS={"key2026":"<another independent 64-hex-character random value>"}
+```
+
+Use Node's `crypto.randomBytes(32).toString('hex')` to generate **different** random values for the session CSRF signing key and the vault encryption key. Never publish these values in GitHub, chats, analytics or logs. Store the keyring in a restricted environment-secret manager. A managed KMS is recommended for mature deployments; this version uses versioned environment-managed keys and requires a documented, tested rotation procedure.
+
+The server requires `STUDIO_PUBLIC_ORIGIN` to match the browser's **exact HTTPS origin** in production. Local Codespaces testing may use HTTP only on localhost or a securely forwarded environment. Verify deployment routing, TLS, trusted proxy headers and persistence before switching production traffic. Supabase tables are versioned in `database/20261123_studio_revocable_sessions_credentials.sql`; the audit table is described in `database/20261123_studio_credential_events.sql`.
+
+### 3. Connect a provider
+
+From Studio → Notion & Integrations, click a card.
+
+- **Notion and Spotify:** configure OAuth client ID and secret in the server environment, `STUDIO_OAUTH_ENABLED=true` and `STUDIO_OAUTH_ORIGIN` (exact HTTPS origin). Register `/studio/oauth/callback` with each provider. Provider permission consent starts through a CSRF-protected action. Tokens are encrypted under the versioned `STUDIO_VAULT_KEYS` keyring; the separate legacy `STUDIO_OAUTH_ENCRYPTION_KEY` is no longer used.
+- **Resend, Supabase, Apple Music and Plausible:** a signed-in founder can securely enter the required credential fields into the Studio dialog. The server runs a read-only provider check and, only on success, encrypts and saves the credentials. The browser never sees saved values again. Replacing and deleting credentials are supported. Encryption changes are audited.
+- **Limits:** A successfully verified and saved credential is not automatically a live email pipeline, content synchronization, music-account authorization, or publishing grant. The existing inquiry backend uses the primary Supabase server environment; saved additional Supabase credentials do not change it automatically. Individual integrations must be activated through separately permissioned workflows.
+
+### 4. Session and account operations
+
+- Session identifiers are random 256-bit values. Only their SHA-256 hashes are stored in Supabase, with a 30-minute inactivity expiry and an eight-hour absolute maximum.
+- The cookie is `HttpOnly`, `SameSite=Lax` (required for OAuth redirect callbacks), and `Secure` in production.
+- Session status and active membership are checked on each protected request. Sign-out revokes the server-side session. Deactivating a Studio membership blocks that member immediately.
+- The session endpoint supplies a CSRF token only to the authenticated private browser UI; credential writes and account connection changes require it and a trusted origin. Credential management is Founder-only and requires a recent (within ten minutes) MFA sign-in.
+- To terminate all sessions in an incident, revoke the affected user's rows in `seasons_studio_sessions` in the protected database and deactivate the membership. Revoke relevant provider credentials separately.
+
+### Production review gates still required
+
+Review MFA account recovery; rate limiting that is shared across all server instances (the current in-memory throttle is not sufficient for horizontally scaled deployments); login and session activity monitoring; load tests; key rotation and KMS options; deployment-origin and reverse-proxy assumptions; backup/recovery; provider permission audits; OAuth token refresh/revocation; and complete end-to-end security tests. These are not waived by a passing syntax check.
+
+`npm test` includes authentication and encryption regression tests. No real credentials are used in these tests.
