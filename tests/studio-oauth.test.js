@@ -47,7 +47,7 @@ test('Notion grant opens provider permission screen with random state, not embed
   process.env.NOTION_OAUTH_CLIENT_SECRET='secret-never-share';
   assert.equal(oauthAvailability().notion.available,true);
   const res=response();
-  oauthStart({headers:{host:'studio.example.test'}},res,'notion');
+  oauthStart({headers:{host:'studio.example.test'}},res,'notion',{id:'123e4567-e89b-42d3-a456-426614174000'});
   assert.equal(res.status,200);
   const link=new URL(JSON.parse(res.body).authorizationUrl);
   assert.equal(link.host,'api.notion.com');
