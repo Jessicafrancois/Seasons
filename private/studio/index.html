@@ -49,7 +49,7 @@ if(!data.operations.alerts.length)line(alerts,'No unresolved alert records. Moni
 const grid=document.getElementById('grid-preview');for(let i=0;i<48;i++){const tile=document.createElement('div');tile.className='grid-tile';grid.append(tile);}
 function redraw(){const r=document.getElementById('grid-rotation').value,g=document.getElementById('grid-gap').value;grid.style.transform='rotate('+r+'deg) scale(.86)';grid.style.gap=g+'px';document.getElementById('grid-values').textContent='Rotation: '+r+'° · Gap: '+g+'px';}
 for(const id of ['grid-rotation','grid-gap'])document.getElementById(id).addEventListener('input',redraw);
-redraw();load();
+redraw();
 
 const centerState = { inquiries: [], opportunities: [] };
 function studioEl(tag, text, className) {
@@ -153,8 +153,13 @@ async function loadCenters() {
   const ready = data.connected;
   document.getElementById('inbox-state').textContent=ready?'Connected':'Not connected';
   document.getElementById('opportunities-state').textContent=ready?'Connected':'Not connected';
-  studioRows(document.getElementById('inbox-list'),data.inquiries || [],'inquiries');
-  studioRows(document.getElementById('opportunities-list'),data.opportunities || [],'opportunities');
+  if (!ready) {
+   document.getElementById('inbox-list').replaceChildren(studioEl('p','Configure the server-side Supabase connection to read the Inquiry Center.','notice'));
+   document.getElementById('opportunities-list').replaceChildren(studioEl('p','Configure the server-side Supabase connection to read the Opportunities Center.','notice'));
+  } else {
+   studioRows(document.getElementById('inbox-list'),data.inquiries || [],'inquiries');
+   studioRows(document.getElementById('opportunities-list'),data.opportunities || [],'opportunities');
+  }
  } catch (error) {
   document.getElementById('inbox-list').replaceChildren(studioEl('p',error.message,'notice'));
   document.getElementById('opportunities-list').replaceChildren(studioEl('p',error.message,'notice'));
@@ -164,6 +169,6 @@ async function loadCenters() {
 }
 document.getElementById('inquiry-detail-close').addEventListener('click',()=>document.getElementById('inquiry-detail-card').classList.add('hidden'));
 document.getElementById('opportunity-detail-close').addEventListener('click',()=>document.getElementById('opportunity-detail-card').classList.add('hidden'));
-loadCenters();
+load().then(loadCenters);
 
 </script></body></html>
