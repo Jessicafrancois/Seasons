@@ -125,7 +125,7 @@ function enrollAllowed(request){
 async function verifiedInvitedUser(request){
  const form=await body(request);
  const email=String(form?.email||'').trim(),password=String(form?.password||'');
- if(!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)||email.length>254||password.length<1||password.length>512)throw Error('Denied');
+ if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||email.length>254||password.length<1||password.length>512)throw Error('Denied');
  const grant=await supabase('/auth/v1/token?grant_type=password',{method:'POST',body:JSON.stringify({email,password})});
  const token=grant?.access_token;
  if(!token)throw Error('Denied');
