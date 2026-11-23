@@ -44,7 +44,7 @@ For the future inquiry inbox, configure `SUPABASE_URL` and `SUPABASE_SERVICE_ROL
 
 ## Not implemented yet
 
-- Modern production login with accounts, MFA, roles and server-signed sessions.
+- Activation and independent security audit of the new individual MFA login, server-side sessions, and encrypted credential management.
 - Reliable serverless/database-backed editor versions, revisions, history, preview URLs and public publishing.
 - Notion bidirectional editorial sync.
 - Real media library, upload processing, copyright/license management.
@@ -56,7 +56,7 @@ For the future inquiry inbox, configure `SUPABASE_URL` and `SUPABASE_SERVICE_ROL
 
 Run `npm test` and `node --check` against all changed JavaScript, or review the `Seasons Studio checks` GitHub workflow. Tests cover the canonical 14-route fixture, protected asset delivery, disabled integration behavior, draft guards and settings validation. Browser visual inspection and all connected-service integration tests remain necessary before deployment.
 
-This branch is a development implementation, not a production release.
+This code is on main but remains an opt-in security implementation, not a production approval.
 
 
 ## Integrations register (November 2026)
@@ -90,7 +90,7 @@ Supported tests:
 - **Apple Music:** catalog API developer-token test. Requires `APPLE_MUSIC_DEVELOPER_TOKEN`. Not MusicKit listener authorization.
 - **Analytics:** read-only Plausible aggregate query. Requires `PLAUSIBLE_SITE_ID` and `PLAUSIBLE_API_KEY`. No browser analytics script is installed.
 
-**Security boundary:** The existing shared Basic authorization in Studio is still for trusted local testing. Because full production sessions, MFA, CSRF hardening, and key rotation have not been completed, this build deliberately does **not** accept token/secret values in a Studio browser form. Once those prerequisites are ready, we can implement an encrypted credential vault and provider OAuth connection flows. Do not expose a public administrator site behind a shared Basic password.
+**Security boundary:** Shared Basic authorization remains for trusted local testing only. The in-app encrypted credential-entry form is available exclusively after individual MFA sign-in with a valid Founder membership, a CSRF-protected session, and a configured versioned keyring. Deployment hardening and independent security review are still required before production activation.
 
 A successful test establishes only that a particular provider's credential-level endpoint responded, not that data synchronization, email delivery, publishing, or licensing is live.
 
