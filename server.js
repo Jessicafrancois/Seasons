@@ -64,6 +64,10 @@ createServer(async(request,response)=>{
   const path=decodeURIComponent(new URL(request.url,'http://localhost').pathname);
   if(path==='/api/inquiries'&&request.method==='POST')return await submitInquiry(request,response);
   if(/^\/api\/(?:studio\/)?openings\/[a-z]+$/.test(path))return await openingApi(request,response,path);
+  if(path==='/studio/login'&&request.method==='GET'){
+   response.writeHead(302,{'Location':'/studio/','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}).end();
+   return;
+  }
   if(path==='/studio'||path==='/studio/'||path.startsWith('/studio/')){
    if(!protect(request,response))return;
    if(path==='/studio/api/overview'&&request.method==='GET'){
