@@ -26,7 +26,7 @@ test('immersive design is scoped to home route and stylesheet is linked',async()
 
 test('PWA activates fresh homepage assets rather than stale cached modules',async()=>{
  const sw=await readFile(new URL('../public/service-worker.js',import.meta.url),'utf8');
- assert.match(sw,/CACHE_PREFIX \+ 'v6'/);
+ assert.match(sw,/CACHE_PREFIX \+ 'v7'/);
  assert.match(sw,/\/styles\/home-editorial\.css/);
  assert.match(sw,/\/js\/pages\/home\.js/);
 });
