@@ -1,4 +1,5 @@
-import { randomBytes,createCipheriv,createDecipheriv,timingSafeEqual } from 'node:crypto';
+import { randomBytes,createCipheriv,createDecipheriv,createHmac,timingSafeEqual } from 'node:crypto';
+import {vaultConfigured} from './studio-vault.js';
 
 const providers={
  notion:{authorization:'https://api.notion.com/v1/oauth/authorize',token:'https://api.notion.com/v1/oauth/token',
@@ -12,8 +13,8 @@ const stateCookie='seasons_oauth_state';
 function enabled(){
  return process.env.STUDIO_OAUTH_ENABLED==='true'
   && process.env.STUDIO_AUTH_MODE==='secure'
-  && /^[a-fA-F0-9]{64}$/.test(process.env.STUDIO_OAUTH_ENCRYPTION_KEY||'')
-  && Boolean(process.env.SUPABASE_URL&&process.env.SUPABASE_SERVICE_ROLE_KEY);
+  && /^[a-fA-F0-9]{64}$/.test(process.env.STUDIO_SESSION_CSRF_KEY||'')
+  && vaultConfigured();
 }
 function config(provider){
  const p=providers[provider];
@@ -50,12 +51,49 @@ async function vault(method,provider,body){
  if(!response.ok)throw Error('Encrypted credential store unavailable');
  return method==='GET'?await response.json():null;
 }
-function encrypt(value){
+function key(id){
+ const keys=JSON.parse(process.env.STUDIO_VAULT_KEYS||'{}');
+ if(!/^[A-Za-z0-9_-]{1,48}$/.test(id)||!/^[a-f0-9]{64}$/i.test(keys[id]||''))throw Error('Encryption key unavailable');
+ return Buffer.from(keys[id],'hex');
+}
+function encrypt(value,provider){
  if(!value)return null;
- const key=Buffer.from(process.env.STUDIO_OAUTH_ENCRYPTION_KEY,'hex'),iv=randomBytes(12);
- const cipher=createCipheriv('aes-256-gcm',key,iv);
+ const id=process.env.STUDIO_VAULT_ACTIVE_KEY_ID,iv=randomBytes(12);
+ const cipher=createCipheriv('aes-256-gcm',key(id),iv);
+ cipher.setAAD(Buffer.from(provider));
  const data=Buffer.concat([cipher.update(value,'utf8'),cipher.final()]);
- return [iv,cipher.getAuthTag(),data].map(x=>x.toString('base64url')).join('.');
+ return [id,...[iv,cipher.getAuthTag(),data].map(x=>x.toString('base64url'))].join('.');
+}
+function decrypt(value,provider){
+ if(!value)return null;
+ const parts=value.split('.');
+ if(parts.length!==4)throw Error('Unknown encrypted token version');
+ const [id,encodedIv,encodedTag,encodedData]=parts;
+ const iv=Buffer.from(encodedIv,'base64url'),tag=Buffer.from(encodedTag,'base64url'),data=Buffer.from(encodedData,'base64url');
+ if(iv.length!==12||tag.length!==16)throw Error('Invalid encrypted token');
+ const decipher=createDecipheriv('aes-256-gcm',key(id),iv);
+ decipher.setAAD(Buffer.from(provider));decipher.setAuthTag(tag);
+ return Buffer.concat([decipher.update(data),decipher.final()]).toString('utf8');
+}
+function signState(payload){
+ const message=encode(JSON.stringify(payload));
+ const signature=createHmac('sha256',Buffer.from(process.env.STUDIO_SESSION_CSRF_KEY,'hex')).update(message).digest('base64url');
+ return message+'.'+signature;
+}
+function verifyState(raw){
+ const parts=raw.split('.');
+ if(parts.length!==2)return null;
+ const expected=createHmac('sha256',Buffer.from(process.env.STUDIO_SESSION_CSRF_KEY,'hex')).update(parts[0]).digest('base64url');
+ if(!equal(expected,parts[1]))return null;
+ return JSON.parse(Buffer.from(parts[0],'base64url').toString('utf8'));
+}
+export async function oauthTokensForServer(provider){
+ if(!config(provider))return null;
+ const rows=await vault('GET',provider);
+ const record=rows?.[0];
+ if(!record)return null;
+ return {accessToken:decrypt(record.encrypted_access_token,provider),
+  refreshToken:decrypt(record.encrypted_refresh_token,provider),expiresAt:record.token_expires_at};
 }
 export function oauthAvailability(){
  return Object.fromEntries(Object.keys(providers).map(id=>[id,{
@@ -82,7 +120,7 @@ export function oauthStart(request,response,provider){
  if(!conf)return response.writeHead(503,{'Cache-Control':'no-store'}).end('Account connection is not configured.');
  const expected=origin();
  if(request.headers.host!==new URL(expected).host)return response.writeHead(403).end('Invalid host.');
- const state=randomBytes(24).toString('base64url'),nonce=encode(JSON.stringify({state,provider,time:Date.now()}));
+ const state=randomBytes(24).toString('base64url'),nonce=signState({state,provider,time:Date.now()});
  const url=new URL(conf.authorization);
  url.searchParams.set('client_id',process.env[conf.id]);
  url.searchParams.set('response_type','code');
@@ -98,7 +136,7 @@ export async function oauthCallback(request,response,query){
   'Set-Cookie':cookie('',0),'Cache-Control':'no-store','Referrer-Policy':'no-referrer'
  }).end();
  let state;
- try{state=JSON.parse(Buffer.from(cookieValue(request),'base64url').toString('utf8'));}catch{return finish('invalid_state')}
+ try{state=verifyState(cookieValue(request));}catch{return finish('invalid_state')}
  if(!state||!providers[state.provider]||Date.now()-state.time>600000||Date.now()<state.time
   ||!equal(state.state,query.get('state'))||!config(state.provider)||query.has('error'))
   return finish('denied');
@@ -122,8 +160,8 @@ export async function oauthCallback(request,response,query){
   const label=state.provider==='notion'?(token.workspace_name||'Notion workspace'):'Spotify account';
   await vault('POST',state.provider,{
    provider:state.provider,
-   encrypted_access_token:encrypt(token.access_token),
-   encrypted_refresh_token:encrypt(token.refresh_token),
+   encrypted_access_token:encrypt(token.access_token,state.provider),
+   encrypted_refresh_token:encrypt(token.refresh_token,state.provider),
    token_expires_at:Number.isFinite(token.expires_in)?new Date(Date.now()+token.expires_in*1000).toISOString():null,
    external_account_label:String(label).slice(0,140),
    updated_at:new Date().toISOString()
