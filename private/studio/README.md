@@ -92,3 +92,31 @@ newly created protected readers are not yet wired into the modular Studio UI.
    disabled when auth configuration or membership resolution fails.
 
 No email sending, signing, rights activation, or Notion sync is enabled by this foundation.
+
+## Supabase Auth sign-in implementation (staged, Nov 23, 2026)
+
+The opt-in login flow now exists at `/studio/login`. It does **not** create a user or grant access merely because someone has a valid Supabase account. The server verifies the Supabase Auth access token via `/auth/v1/user`, confirms the email is verified, retrieves the user's active membership through a server-only service role, and checks the `studio.read` permission before issuing a short-lived HttpOnly, SameSite=Strict browser cookie.
+
+The Studio supports these modes:
+- `STUDIO_AUTH_MODE=supabase`: explicit Supabase member verification. Basic credentials are ignored.
+- Unset (development, where `NODE_ENV !== production`): existing local Basic login for trusted, nonpublic development.
+- Unset (production) or `STUDIO_AUTH_MODE=disabled`: fail closed with a 503 status.
+
+To enable Supabase mode after real founder account enrollment, configure these **server-only** environment variables (never commit values or send keys in chat):
+
+```text
+STUDIO_AUTH_MODE=supabase
+SUPABASE_URL=https://<your-seasons-project-ref>.supabase.co
+SUPABASE_PUBLISHABLE_KEY=<from Supabase project API Keys page>
+SUPABASE_SERVICE_ROLE_KEY=<existing privileged server key>
+```
+
+1. Through the Supabase Authentication dashboard, invite the actual founder account and complete email confirmation. Check the verified `auth.users.id` before authorizing.
+2. Through a trusted administrator, add a row in `public.seasons_studio_members` for that **existing** verified Auth user. Use `role='Founder'`, `confidentiality_clearance='Founder Private'`, `is_active=true`. Never create a user using manual SQL or self-service membership enrollment.
+3. Configure the server variables above and restart the application; visit `/studio/login`.
+4. Confirm missing membership, disabled membership, invalid credentials, unauthenticated API requests, forged origins, unauthorized classifications and logout all fail closed.
+5. Set up and verify multi-factor authentication before a public production cutover. The present password login does **not yet** implement an MFA enrollment/challenge interface, forced session revocation, refresh-token rotation or advanced bot mitigation.
+
+The current session cookie holds a Supabase access token server-side only (not readable from JavaScript), with a max lifetime of 30 minutes or less if the underlying Auth token expires sooner. Logout clears the browser cookie; it does not yet revoke every outstanding JWT. Do not enable signing, financial approvals or real rights activation until the complete auth and audit flows have been independently security-reviewed.
+
+**Operational integration note:** this phase connects authenticated sessions and private API clearance filters. The modular Inquiry and Opportunities pages may still show explicit sample demonstrations; comprehensive live lists, writing, email replies and Notion synchronization are separate milestones.
