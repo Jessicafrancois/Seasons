@@ -74,7 +74,7 @@ export function renderDesign(root){const card=section('Design System','Foundatio
 export function renderMotion(root){const card=section('Motion Studio','Preview');card.append(note('The opening editor contains initial motion settings. Reusable transition presets and a full animation timeline are planned.'));root.append(card);}
 export function renderPublishing(root){const card=section('Publishing','Disabled');card.append(note('Publishing is intentionally disabled. Local draft settings are not public releases, and current Fall content remains unchanged.',true));root.append(card);}
 export function renderIntegrations(root,data,inventory){
- root.append(note('Connection status is read-only. A configured secret does not mean a service is reachable. Secrets and private identifiers are never shown here.'));
+ root.append(note('Use Configure for setup instructions and Test connection for a server-side credential check. Keys remain in your server secrets, never in this page.'));
  const records=inventory?.connections;
  if(!records){
   const unavailable=section('Integration register','Unavailable');
@@ -95,6 +95,44 @@ export function renderIntegrations(root,data,inventory){
    const next=el('p','','integration-next');
    next.append(el('strong','Next: '),document.createTextNode(connection.next));
    block.append(next);
+   const settings=inventory.setup?.[connection.id];
+   if(settings){
+    const controls=el('div','','integration-controls');
+    const setupButton=button('Configure',()=>{instructions.hidden=!instructions.hidden;},true);
+    setupButton.setAttribute('aria-expanded','false');
+    const instructions=el('div','','integration-setup');instructions.hidden=true;
+    setupButton.addEventListener('click',()=>setupButton.setAttribute('aria-expanded',String(!instructions.hidden)));
+    const guide=el('p',settings.help,'muted');instructions.append(guide);
+    const secrets=el('div','','integration-secrets');
+    for(const name of settings.required){
+     const line=el('div','','integration-secret-line');
+     const code=el('code',name);
+     const copy=button('Copy name',async()=>{
+      try{await navigator.clipboard.writeText(name);copy.textContent='Copied';}
+      catch{copy.textContent='Select name to copy';}
+     },true);
+     line.append(code,copy);secrets.append(line);
+    }
+    instructions.append(el('p','Add these values in GitHub Codespaces secrets or your deployment provider environment settings. Never paste private keys into this page.','muted'),secrets);
+    if(settings.optional?.length)instructions.append(el('p','Optional: '+settings.optional.join(', '),'muted'));
+    const link=el('a','Open provider setup ↗','integration-provider-link');
+    link.href=settings.portal;link.target='_blank';link.rel='noopener noreferrer';instructions.append(link);
+    const check=button('Test connection',async()=>{
+     check.disabled=true;status.textContent='Checking provider…';
+     try{
+      const response=await fetch('/studio/api/integrations/'+encodeURIComponent(connection.id)+'/test',{
+       method:'POST',credentials:'same-origin',headers:{'X-Seasons-Studio':'integration-check'}
+      });
+      const result=await response.json();
+      if(!response.ok)throw Error('Check not authorized');
+      status.textContent=(result.status==='verified'?'Verified: ':result.status==='not_configured'?'Not configured: ':'Not verified: ')+result.message;
+     }catch{status.textContent='Connection check unavailable. Verify access and try again.'}
+     finally{check.disabled=false}
+    },true);
+    const status=el('p','','integration-test-result');status.setAttribute('role','status');
+    controls.append(setupButton,check);
+    block.append(controls,instructions,status);
+   }
    card.append(block);
   }
   wrap.append(card);
