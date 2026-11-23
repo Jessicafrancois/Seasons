@@ -79,3 +79,9 @@
     padding: 8px;
   }
 }
+
+/* Quiet access point for the private Studio; secondary to public footer copy. */
+footer .studio-footer-link{display:inline-block;margin-left:9px;font-size:9px;font-weight:400;letter-spacing:.02em;color:var(--muted);text-decoration:none;opacity:.62;transition:opacity .2s ease}
+footer .studio-footer-link::before{content:'·';margin-right:9px;opacity:.65}
+footer .studio-footer-link:hover,footer .studio-footer-link:focus-visible{opacity:1;text-decoration:underline;text-underline-offset:3px}
+footer .studio-footer-link:focus-visible{outline:2px solid currentColor;outline-offset:3px}
