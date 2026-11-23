@@ -73,9 +73,37 @@ export function renderMedia(root){const card=section('Media Library','Integratio
 export function renderDesign(root){const card=section('Design System','Foundation');card.append(note('The Studio interface is now styled through one shared stylesheet. Tokens for the public PWA will be mapped separately to avoid changing existing pages.'));root.append(card);}
 export function renderMotion(root){const card=section('Motion Studio','Preview');card.append(note('The opening editor contains initial motion settings. Reusable transition presets and a full animation timeline are planned.'));root.append(card);}
 export function renderPublishing(root){const card=section('Publishing','Disabled');card.append(note('Publishing is intentionally disabled. Local draft settings are not public releases, and current Fall content remains unchanged.',true));root.append(card);}
-export function renderIntegrations(root,data){const card=section('Integrations','Connection status');
-for(const [name,status] of [['Notion','Not connected'],['Supabase inquiry storage',data?.operations?.storageConnected?'Connected':'Not connected'],['Audience analytics','Not connected'],['Media storage','Not connected']])item(card,name,status);
-root.append(card);}
+export function renderIntegrations(root,data,inventory){
+ root.append(note('Connection status is read-only. A configured secret does not mean a service is reachable. Secrets and private identifiers are never shown here.'));
+ const records=inventory?.connections;
+ if(!records){
+  const unavailable=section('Integration register','Unavailable');
+  unavailable.append(empty('Connection status could not be loaded. Use Refresh data to try again.'));root.append(unavailable);return;
+ }
+ const groups=[['Editorial','Content and research'],['Operations','Inquiries and opportunities'],['Media','Asset management'],['Communications','Correspondence'],['Listening','Music destinations'],['Insights','Audience research']];
+ const titles={configured:'Configured · not verified',not_configured:'Not configured',pending_verification:'Setup pending',planned:'Planned'};
+ const wrap=el('div','','integration-grid');
+ for(const [group,desc] of groups){
+  const groupRecords=records.filter(x=>x.group===group);
+  if(!groupRecords.length)continue;
+  const card=section(group,desc);
+  for(const connection of groupRecords){
+   const block=el('div','','integration-record');
+   const heading=el('div','','integration-row');
+   heading.append(el('h3',connection.name),el('span',titles[connection.state]||'Unverified','integration-state integration-state--'+connection.state));
+   block.append(heading,el('p',connection.purpose,'muted'),el('p',connection.details,'muted'));
+   const next=el('p','','integration-next');
+   next.append(el('strong','Next: '),document.createTextNode(connection.next));
+   block.append(next);
+   card.append(block);
+  }
+  wrap.append(card);
+ }
+ root.append(wrap);
+ const foot=section('Integration policy','Server-side only');
+ foot.append(note('Notion owns editorial records. Supabase owns operational records and private files. Publishing, email sending and commercial rights operations remain disabled until separately reviewed.'));
+ root.append(foot);
+}
 export function renderSystem(root,data,draft){const card=section('System & Security','Development');
 item(card,'Current access','Temporary server-side Basic authentication. Replace before production.');
 item(card,'Draft storage',draft?.enabled?'Local development file persistence enabled':'Disabled. Set STUDIO_LOCAL_DRAFTS=true in local development.');
