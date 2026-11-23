@@ -2,10 +2,7 @@
   "version": 2,
   "functions": {
     "api/index.js": {
-      "includeFiles": [
-        "public/**",
-        "private/studio/**"
-      ],
+      "includeFiles": "{public/**,private/studio/**}",
       "maxDuration": 30
     }
   },
