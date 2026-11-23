@@ -3,7 +3,9 @@ import { readFile } from 'node:fs/promises';
 import { resolve, sep, extname } from 'node:path';
 import { timingSafeEqual } from 'node:crypto';
 import { overview } from './server/studio-data.js';
+import { publicDocument } from './server/public-document.js';
 import { operationalData, submitInquiry } from './server/studio-operations.js';
+import { centerLists, inquiryDetails, opportunityDetails } from './server/studio-centers.js';
 import { readDraft, saveDraft } from './server/studio-drafts.js';
 
 const root=resolve(import.meta.dirname,'public');
