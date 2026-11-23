@@ -29,7 +29,7 @@ function navigate(key){
  else if(key==='overview')renderOverview(content,snapshot,navigate);
  else if(key==='inquiries')renderInquiryCenter(content,snapshot,navigate);
  else if(key==='opportunities')renderOpportunities(content);
- else if(key==='system')renderSystem(content,snapshot,editorDraft);
+ else if(key==='system')renderSystem(content,snapshot,editorDraft,studioSession);
  else if(key==='settings')renderSettings(content,editorDraft);
  else if(key==='integrations')renderIntegrations(content,snapshot,integrationSnapshot,studioSession,vaultSnapshot,refresh);
  else renderer[key](content,snapshot);
