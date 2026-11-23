@@ -103,3 +103,48 @@ test('new Studio auth endpoints remain server protected by member lookup',async(
  assert.match(server,/path==='\/studio\/auth\/logout'/);
  assert.match(server,/path==='\/studio\/api\/session'/);
 });
+
+test('unenrolled Supabase mode exposes only sign-in page and denies Studio data',async()=>{
+ const { spawn }=await import('node:child_process');
+ const { setTimeout: delay }=await import('node:timers/promises');
+ const port=String(48000+Math.floor(Math.random()*1000));
+ const server=spawn(process.execPath,['server.js'],{
+  cwd:process.cwd(),
+  env:{...process.env,PORT:port,STUDIO_AUTH_MODE:'supabase',SUPABASE_URL:'',
+   SUPABASE_SERVICE_ROLE_KEY:'',SUPABASE_PUBLISHABLE_KEY:'',
+   STUDIO_USERNAME:'ignored',STUDIO_PASSWORD:'ignored'},
+  stdio:'pipe'
+ });
+ const base='http://127.0.0.1:'+port;
+ try{
+  let ready=false;
+  for(let attempt=0;attempt<70;attempt++){
+   if(server.exitCode!==null)break;
+   try{const check=await fetch(base+'/');if(check.status===200){ready=true;break}}catch{}
+   await delay(100);
+  }
+  assert.equal(ready,true,'Server bootstraps with authentication disabled by default');
+  const page=await fetch(base+'/studio/login');
+  assert.equal(page.status,200);
+  assert.match(await page.text(),/Sign in \| Seasons Studio/);
+  const studio=await fetch(base+'/studio/',{redirect:'manual'});
+  assert.equal(studio.status,303);
+  assert.equal(studio.headers.get('location'),'/studio/login');
+  const api=await fetch(base+'/studio/api/centers');
+  assert.equal(api.status,401);
+  const passwordFallback='Basic '+Buffer.from('ignored:ignored').toString('base64');
+  const blocked=await fetch(base+'/studio/api/overview',{headers:{Authorization:passwordFallback}});
+  assert.equal(blocked.status,401);
+  const login=await fetch(base+'/studio/auth/login',{
+   method:'POST',headers:{Origin:base,'Content-Type':'application/json'},
+   body:JSON.stringify({email:'example@example.test',password:'password'})
+  });
+  assert.equal(login.status,503);
+ }finally{
+  server.kill('SIGTERM');
+  if(server.exitCode===null)await Promise.race([
+   new Promise(resolve=>server.once('exit',resolve)),
+   delay(1500)
+  ]);
+ }
+});
