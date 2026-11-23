@@ -1,5 +1,5 @@
 const CACHE_PREFIX = 'seasons-pwa-';
-const CACHE_NAME = CACHE_PREFIX + 'v5';
+const CACHE_NAME = CACHE_PREFIX + 'v6';
 const HOME = '/';
 const STATIC_FILES = [
   '/manifest.webmanifest',
@@ -29,7 +29,8 @@ const STATIC_FILES = [
   '/js/pages/seasons.js',
   '/js/pages/track.js',
   '/js/router.js',
-  '/styles/seasons.css'
+  '/styles/seasons.css',
+  '/styles/home-editorial.css'
 ];
 
 self.addEventListener('install', event => {
