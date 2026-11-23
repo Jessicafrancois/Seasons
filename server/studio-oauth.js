@@ -11,7 +11,7 @@ const path='/studio/oauth/callback';
 const stateCookie='seasons_oauth_state';
 function enabled(){
  return process.env.STUDIO_OAUTH_ENABLED==='true'
-  && process.env.NODE_ENV!=='production'
+  && process.env.STUDIO_AUTH_MODE==='secure'
   && /^[a-fA-F0-9]{64}$/.test(process.env.STUDIO_OAUTH_ENCRYPTION_KEY||'')
   && Boolean(process.env.SUPABASE_URL&&process.env.SUPABASE_SERVICE_ROLE_KEY);
 }
@@ -90,7 +90,7 @@ export function oauthStart(request,response,provider){
  url.searchParams.set('state',state);
  if(provider==='notion')url.searchParams.set('owner','user');
  if(conf.scope)url.searchParams.set('scope',conf.scope);
- response.writeHead(302,{'Location':url.href,'Set-Cookie':cookie(nonce,600),'Cache-Control':'no-store','Referrer-Policy':'no-referrer'}).end();
+ response.writeHead(200,{'Content-Type':'application/json; charset=utf-8','Set-Cookie':cookie(nonce,600),'Cache-Control':'no-store','Referrer-Policy':'no-referrer'}).end(JSON.stringify({authorizationUrl:url.href}));
 }
 export async function oauthCallback(request,response,query){
  const finish=(reason)=>response.writeHead(303,{
