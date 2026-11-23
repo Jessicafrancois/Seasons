@@ -26,7 +26,7 @@ test('immersive design is scoped to home route and stylesheet is linked',async()
 
 test('PWA activates fresh homepage assets rather than stale cached modules',async()=>{
  const sw=await readFile(new URL('../public/service-worker.js',import.meta.url),'utf8');
- assert.match(sw,/CACHE_PREFIX \+ 'v7'/);
+ assert.match(sw,/CACHE_PREFIX \+ 'v8'/);
  assert.match(sw,/\/styles\/home-editorial\.css/);
  assert.match(sw,/\/js\/pages\/home\.js/);
 });
@@ -44,4 +44,12 @@ test('reference layout retains ruled top navigation and modest centered title',a
  assert.match(css,/grid-template-columns:repeat\(5,minmax\(0,1fr\)\)/);
  assert.match(css,/font:normal clamp\(37px,4\.3vw,67px\)/);
  assert.match(css,/editorial-home-pagination-current/);
+});
+
+test('home replaces old selected explorations heading with four linked tiles',()=>{
+ const rendered=home();
+ assert.match(rendered,/home-feature-section/);
+ assert.equal((rendered.match(/class="home-feature-tile home-feature-tile--/g)||[]).length,4);
+ assert.doesNotMatch(rendered,/Selected explorations|01 \/ Selected explorations/);
+ assert.match(rendered,/href="#\/seasons\/fall"/);
 });
