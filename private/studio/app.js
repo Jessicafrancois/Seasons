@@ -1,3 +1,4 @@
+import {renderInquiryCenter} from './pages/inquiry-center.js';
 import {sections,descriptions,el,clear} from './components/ui.js';
 import {renderOverview,renderInquiries,renderAlerts,renderPages,renderAnalytics,renderSeasons,renderProjects,renderMedia,renderDesign,renderMotion,renderPublishing,renderIntegrations,renderSystem,renderSettings} from './pages/workspace.js';
 import {renderEditor} from './editor/opening.js';
@@ -25,6 +26,7 @@ function navigate(key){
  clear(content);
  if(key==='editor')renderEditor(content,editorDraft);
  else if(key==='overview')renderOverview(content,snapshot,navigate);
+ else if(key==='inquiries')renderInquiryCenter(content,snapshot);
  else if(key==='system')renderSystem(content,snapshot,editorDraft);
  else if(key==='settings')renderSettings(content,editorDraft);
  else if(key==='integrations')renderIntegrations(content,snapshot);
