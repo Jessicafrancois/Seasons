@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { resolve, sep, extname } from 'node:path';
 import { timingSafeEqual } from 'node:crypto';
 import { overview } from './server/studio-data.js';
+import { publicDocument } from './server/public-document.js';
 import { operationalData, submitInquiry } from './server/studio-operations.js';
 
 const root = resolve(import.meta.dirname, 'public');
@@ -70,7 +71,15 @@ createServer(async (request, response) => {
     }
     if (path.startsWith('/api/') || request.method !== 'GET') return response.writeHead(404).end('Page unavailable');
     const page = path === '/' || /^\/projects\/[a-z0-9-]+\/?$/.test(path);
-    const file = resolve(root, '.' + (page ? '/index.html' : path));
+    if (page) {
+      response.writeHead(200, {
+        'Content-Type': 'text/html; charset=utf-8',
+        'Cache-Control': 'no-cache',
+        'X-Content-Type-Options': 'nosniff'
+      }).end(publicDocument());
+      return;
+    }
+    const file = resolve(root, '.' + path);
     if (!file.startsWith(root + sep)) return response.writeHead(404).end();
     const body = await readFile(file);
     const headers = { 'Content-Type': types[extname(file)] ?? 'application/octet-stream' };
