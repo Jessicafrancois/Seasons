@@ -19,14 +19,14 @@ function navButton(label,active,action){
  if(active)button.setAttribute('aria-current','page');
  button.addEventListener('click',action);return button;
 }
-export function renderInquiryCenter(root,data){
+export function renderInquiryCenter(root,data,navigate=()=>{}){
  const shell=el('div','','inquiry-shell'),side=el('nav','','inquiry-sidebar'),main=el('section','','inquiry-main');
  side.setAttribute('aria-label','Inquiry Center navigation');
  const render=()=>{
   clear(side);clear(main);
   side.append(el('h2','Inquiry Center'));
   for(const [key,label] of areas){
-   side.append(navButton(label,state.area===key,()=>{state.area=key;state.selected=null;render()}));
+   side.append(navButton(label,state.area===key,()=>{if(key==='opportunities'){navigate('opportunities');return}state.area=key;state.selected=null;render()}));
    if(key==='inbox'&&state.area==='inbox'){
     const sub=el('div','','inquiry-subnav');
     for(const [view,name] of inboxViews)sub.append(navButton(name,state.view===view,()=>{state.view=view;state.selected=null;render()}));
