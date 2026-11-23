@@ -57,3 +57,21 @@ For the future inquiry inbox, configure `SUPABASE_URL` and `SUPABASE_SERVICE_ROL
 Run `npm test` and `node --check` against all changed JavaScript, or review the `Seasons Studio checks` GitHub workflow. Tests cover the canonical 14-route fixture, protected asset delivery, disabled integration behavior, draft guards and settings validation. Browser visual inspection and all connected-service integration tests remain necessary before deployment.
 
 This branch is a development implementation, not a production release.
+
+
+## Integrations register (November 2026)
+
+Studio → **Notion & Integrations** now shows a credential-safe read-only register supplied by `GET /studio/api/integrations` through the existing private Studio auth gate. The endpoint never returns token values, URLs, email addresses or private object names. Status definitions:
+
+- **Configured · not verified:** required environment variables are present but no external access check is implied.
+- **Setup pending:** some server configuration exists, but the feature (such as storage uploads or mail delivery) still needs implementation or verification.
+- **Not configured:** necessary server-side settings are absent.
+- **Planned:** no service has been connected or authenticated.
+
+The register groups Notion editorial content, Supabase operations and storage, email, Spotify, Apple Music, and privacy-conscious analytics. It never sends mail, alters editorial content, publishes a release, or grants rights.
+
+**Configuration responsibilities:** Notion is the editorial source; Supabase is the protected operational database and asset store; any email provider must support verified-domain outbound delivery and signed inbound webhooks. Public music links are distinct from user OAuth access. Access to confidential integrations must remain server-side.
+
+**Next implementation gates:** authenticate the founder with a production-safe Studio session; verify Notion database and page scopes; probe Supabase read permissions and storage buckets; choose email provider and domain; create webhook verification and message threading; add consent-aware analytics. Record failed checks without leaking credentials. Never treat a credential-presence check as successful remote validation.
+
+Tests: `tests/studio-integrations.test.js`. In Codespaces run `npm test`. The main-branch GitHub Actions workflow includes the server module in syntax checks.
