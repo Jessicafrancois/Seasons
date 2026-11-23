@@ -45,14 +45,19 @@ test('detail readers reject malformed identifiers without querying a database', 
  assert.equal(await opportunityDetails('not-a-uuid'),null);
 });
 
-test('Studio APIs remain under authenticated /studio/api scope and do not expose write routes', async () => {
+test('Studio center APIs remain authenticated, read-only, and exposed through allowlisted routes', async () => {
  const server = await readFile(new URL('../server.js', import.meta.url),'utf8');
  const studio = await readFile(new URL('../private/studio/index.html', import.meta.url),'utf8');
- assert.match(server,/if \(!protectStudio\(request, response\)\) return/);
- assert.match(server,/path === '\/studio\/api\/centers'/);
- assert.match(server,/request.method !== 'GET'/);
- assert.match(studio,/data-view="opportunities"/);
- assert.match(studio,/id="opportunity-detail"/);
- assert.match(studio,/id="inquiry-detail"/);
- assert.match(studio,/load\(\)\.then\(loadCenters\)/);
+ const app = await readFile(new URL('../private/studio/app.js', import.meta.url),'utf8');
+ const nav = await readFile(new URL('../private/studio/components/ui.js', import.meta.url),'utf8');
+ assert.match(server,/if\(!protect\(request,response\)\)return/);
+ assert.match(server,/path==='\/studio\/api\/centers'/);
+ assert.match(server,/await centerLists\(\)/);
+ assert.match(server,/await inquiryDetails\(match\[2\]\)/);
+ assert.match(server,/await opportunityDetails\(match\[2\]\)/);
+ assert.match(server,/if\(request.method!=='GET'\)return json\(response,405/);
+ assert.match(studio,/\/studio\/assets\/app\.js/);
+ assert.match(nav,/\['Opportunities','opportunities'\]/);
+ assert.match(app,/renderInquiryCenter\(content,snapshot,navigate\)/);
+ assert.match(app,/renderOpportunities\(content\)/);
 });
