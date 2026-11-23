@@ -4,6 +4,7 @@ on:
     branches:
       - feature/seasons-studio-foundation
       - feature/studio-modular-workspace
+      - feature/seasons-immersive-home
   pull_request:
 jobs:
   verify:
@@ -18,6 +19,8 @@ jobs:
           node --check server.js
           node --check server/studio-data.js
           node --check server/studio-operations.js
+          node --check server/studio-centers.js
+          node --check server/public-document.js
           node --check server/studio-drafts.js
           node --check private/studio/app.js
           node --check private/studio/components/ui.js
