@@ -29,13 +29,13 @@ export function integrationInventory(){
     email?'Provider settings detected; inbound and outbound mail delivery are not enabled.':'No email provider integration is configured.',
     'Choose a provider, verify the sending domain and configure inbound webhooks and message threading.'),
    entry('spotify','Spotify','Listening','Open or embed approved streaming releases and playlists.',
-    'planned','Public catalog links may exist, but account authorization and catalog synchronization are not built.',
+    ready('SPOTIFY_CLIENT_ID','SPOTIFY_CLIENT_SECRET')?'configured':'planned','Public catalog links may exist, but account authorization and catalog synchronization are not built.',
     'Decide whether to use public links or an optional account-linked integration.'),
    entry('apple-music','Apple Music','Listening','Link approved records and playlists to Apple Music.',
-    'planned','Catalog links are separate from an authenticated Apple Music API integration.',
+    ready('APPLE_MUSIC_DEVELOPER_TOKEN')?'configured':'planned','Catalog links are separate from an authenticated Apple Music API integration.',
     'Begin with canonical release links; evaluate API access only where useful.'),
    entry('analytics','Audience analytics','Insights','Privacy-conscious visit and engagement reporting.',
-    'planned','No tracking or analytics provider is running through Studio.',
+    ready('PLAUSIBLE_SITE_ID','PLAUSIBLE_API_KEY')?'configured':'planned','No tracking or analytics provider is running through Studio.',
     'Choose the measurement policy and provider before collecting visitor data.')
   ]
  };
