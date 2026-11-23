@@ -1,11 +1,12 @@
 export const sections = [
- { group:'Operations', items:[['Overview','overview'],['Inquiries','inquiries'],['Alerts','alerts'],['Analytics','analytics']] },
+ { group:'Operations', items:[['Overview','overview'],['Inquiries','inquiries'],['Opportunities','opportunities'],['Alerts','alerts'],['Analytics','analytics']] },
  { group:'Creative management', items:[['Page Inventory','pages'],['Page Editor','editor'],['Seasons Manager','seasons'],['Projects & Records','projects'],['Media Library','media'],['Design System','design'],['Motion Studio','motion']] },
  { group:'Platform', items:[['Publishing','publishing'],['Notion & Integrations','integrations'],['System & Security','system'],['Settings','settings']] }
 ];
 export const descriptions = {
  overview:['Overview','Your entire creative platform, at a glance.'],
  inquiries:['Inquiries','Review requests concerning your work.'],
+ opportunities:['Opportunities','Creative relationships, contracts, and rights review.'],
  alerts:['Alerts','Operational events and records that need attention.'],
  analytics:['Analytics','Audience intelligence across Seasons.'],
  pages:['Page Inventory','Public pages, seasonal content, and routes.'],
