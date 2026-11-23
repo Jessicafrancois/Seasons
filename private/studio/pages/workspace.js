@@ -74,73 +74,117 @@ export function renderDesign(root){const card=section('Design System','Foundatio
 export function renderMotion(root){const card=section('Motion Studio','Preview');card.append(note('The opening editor contains initial motion settings. Reusable transition presets and a full animation timeline are planned.'));root.append(card);}
 export function renderPublishing(root){const card=section('Publishing','Disabled');card.append(note('Publishing is intentionally disabled. Local draft settings are not public releases, and current Fall content remains unchanged.',true));root.append(card);}
 export function renderIntegrations(root,data,inventory){
- root.append(note('Use Configure for setup instructions and Test connection for a server-side credential check. Keys remain in your server secrets, never in this page.'));
- const records=inventory?.connections;
- if(!records){
-  const unavailable=section('Integration register','Unavailable');
-  unavailable.append(empty('Connection status could not be loaded. Use Refresh data to try again.'));root.append(unavailable);return;
+ const records=inventory?.connections||[];
+ const directory=section('Connected services','ACCOUNT CONNECTIONS');
+ directory.classList.add('integration-directory');
+ const intro=el('p','Give Seasons permission to access the content and accounts you choose. You can review each connection before authorizing it.','muted');
+ const summary=el('div','','integration-summary');summary.append(el('strong','Your creative workspace'),el('span','Notion · Supabase · Music · Communications'));
+ directory.append(intro,summary);
+ if(!records.length){directory.append(note('The connections register is unavailable. Refresh Studio to try again.'));root.append(directory);return;}
+ const display={notion:'N',supabase:'S',storage:'S',email:'@',spotify:'♫','apple-music':'♪',analytics:'↗'};
+ const category={notion:'Editorial workspace',supabase:'Private data',storage:'Media archive',email:'Correspondence',spotify:'Listening', 'apple-music':'Listening',analytics:'Insight'};
+ const label={configured:'Ready to verify',not_configured:'Not connected',pending_verification:'Setup needed',planned:'Not connected'};
+ const cards=el('div','','integration-tiles');
+ const modal=document.createElement('dialog');modal.className='integration-modal';modal.setAttribute('aria-label','Connect a service');
+ let oauth={};
+ async function connectionStates(){
+  try{
+   const res=await fetch('/studio/api/oauth/status',{cache:'no-store'});
+   if(res.ok){oauth=await res.json();for(const [id,state] of Object.entries(oauth.connections||{})){
+    const chip=cards.querySelector('[data-connection="'+id+'"] .integration-tile-state');
+    if(chip&&state.connected)chip.textContent='Connected';
+   }}
+  }catch{}
  }
- const groups=[['Editorial','Content and research'],['Operations','Inquiries and opportunities'],['Media','Asset management'],['Communications','Correspondence'],['Listening','Music destinations'],['Insights','Audience research']];
- const titles={configured:'Configured · not verified',not_configured:'Not configured',pending_verification:'Setup pending',planned:'Planned'};
- const wrap=el('div','','integration-grid');
- for(const [group,desc] of groups){
-  const groupRecords=records.filter(x=>x.group===group);
-  if(!groupRecords.length)continue;
-  const card=section(group,desc);
-  for(const connection of groupRecords){
-   const block=el('div','','integration-record');
-   const heading=el('div','','integration-row');
-   heading.append(el('h3',connection.name),el('span',titles[connection.state]||'Unverified','integration-state integration-state--'+connection.state));
-   block.append(heading,el('p',connection.purpose,'muted'),el('p',connection.details,'muted'));
-   const next=el('p','','integration-next');
-   next.append(el('strong','Next: '),document.createTextNode(connection.next));
-   block.append(next);
-   const settings=inventory.setup?.[connection.id];
-   if(settings){
-    const controls=el('div','','integration-controls');
-    const setupButton=button('Configure',()=>{instructions.hidden=!instructions.hidden;},true);
-    setupButton.setAttribute('aria-expanded','false');
-    const instructions=el('div','','integration-setup');instructions.hidden=true;
-    setupButton.addEventListener('click',()=>setupButton.setAttribute('aria-expanded',String(!instructions.hidden)));
-    const guide=el('p',settings.help,'muted');instructions.append(guide);
-    const secrets=el('div','','integration-secrets');
-    for(const name of settings.required){
-     const line=el('div','','integration-secret-line');
-     const code=el('code',name);
-     const copy=button('Copy name',async()=>{
-      try{await navigator.clipboard.writeText(name);copy.textContent='Copied';}
-      catch{copy.textContent='Select name to copy';}
-     },true);
-     line.append(code,copy);secrets.append(line);
-    }
-    instructions.append(el('p','Add these values in GitHub Codespaces secrets or your deployment provider environment settings. Never paste private keys into this page.','muted'),secrets);
-    if(settings.optional?.length)instructions.append(el('p','Optional: '+settings.optional.join(', '),'muted'));
-    const link=el('a','Open provider setup ↗','integration-provider-link');
-    link.href=settings.portal;link.target='_blank';link.rel='noopener noreferrer';instructions.append(link);
-    const check=button('Test connection',async()=>{
-     check.disabled=true;status.textContent='Checking provider…';
-     try{
-      const response=await fetch('/studio/api/integrations/'+encodeURIComponent(connection.id)+'/test',{
-       method:'POST',credentials:'same-origin',headers:{'X-Seasons-Studio':'integration-check'}
-      });
-      const result=await response.json();
-      if(!response.ok)throw Error('Check not authorized');
-      status.textContent=(result.status==='verified'?'Verified: ':result.status==='not_configured'?'Not configured: ':'Not verified: ')+result.message;
-     }catch{status.textContent='Connection check unavailable. Verify access and try again.'}
-     finally{check.disabled=false}
-    },true);
-    const status=el('p','','integration-test-result');status.setAttribute('role','status');
-    controls.append(setupButton,check);
-    block.append(controls,instructions,status);
-   }
-   card.append(block);
+ const close=button('Close',()=>modal.close(),true);
+ close.setAttribute('aria-label','Close connection details');
+ const heading=el('h2','');
+ const categoryLine=el('p','','integration-kicker');
+ const description=el('p','','muted');
+ const permissions=el('ul','','integration-permissions');
+ const instruction=el('div','','integration-modal-setup');
+ const result=el('p','','integration-modal-result');result.setAttribute('role','status');
+ const buttons=el('div','','integration-modal-actions');
+ const header=el('div','','integration-modal-head');header.append(categoryLine,close);
+ modal.append(header,heading,description,el('h3','Permissions and access'),permissions,instruction,result,buttons);
+ modal.addEventListener('click',event=>{if(event.target===modal)modal.close()});
+ const permissionList={
+  notion:['Choose the pages and databases shared with Seasons','Access only content permitted by the Notion integration','No automatic publishing or changes to your work'],
+  supabase:['Read private inquiry and opportunity records on the server','Store operational records under protected permissions','No access tokens exposed to website visitors'],
+  storage:['Access authorized media and document buckets','Keep contract files private','Uploads and sharing remain disabled until permissions are reviewed'],
+  email:['Verify an email sending domain','Send and receive correspondence only after delivery workflows are enabled','No messages are sent during connection setup'],
+  spotify:['Read your Spotify profile for connecting listening features','No playlist edits, playback control, or library modification','You may revoke access from your Spotify account'],
+  'apple-music':['Read approved catalog metadata with an Apple developer token','Listener sign-in requires a separate MusicKit integration','No Apple Music account access requested here'],
+  analytics:['Read aggregate site statistics','No new tracking code is installed from this screen','Review privacy and consent before collecting visitor data']
+ };
+ function launch(id){
+  const record=records.find(x=>x.id===id);if(!record)return;
+  const cfg=inventory.setup?.[id];
+  heading.textContent=record.name;
+  categoryLine.textContent=category[id]||'Service connection';
+  description.textContent=record.purpose;
+  permissions.replaceChildren();
+  for(const permission of permissionList[id]||[])permissions.append(el('li',permission));
+  instruction.replaceChildren();buttons.replaceChildren();result.textContent='';
+  const authorization=oauth.providers?.[id];
+  if(oauth.connections?.[id]?.connected){
+   instruction.append(note('Connected account: '+oauth.connections[id].label+'. Your connection has been saved securely. Other workflows may require separate setup.'));
+  }else if(authorization?.available){
+   instruction.append(note('Your account authorization will open on the provider website. Review its permission screen and select the content you wish to share.'));
+   const connect=button('Continue to '+record.name,()=>{location.assign('/studio/oauth/start/'+id)});
+   buttons.append(connect);
+  }else{
+   instruction.append(note('Account authorization is not yet enabled for this provider in this Studio environment. Configure the required application settings below.'));
   }
-  wrap.append(card);
+  if(cfg){
+   instruction.append(el('h3','Connection settings'));
+   instruction.append(el('p',cfg.help,'muted'));
+   const list=el('div','','integration-secrets');
+   for(const key of cfg.required){
+    const line=el('div','','integration-secret-line');
+    line.append(el('code',key));
+    const copy=button('Copy',async()=>{
+     try{await navigator.clipboard.writeText(key);copy.textContent='Copied'}
+     catch{copy.textContent='Select to copy'}
+    },true);
+    line.append(copy);list.append(line);
+   }
+   instruction.append(list);
+   instruction.append(el('p','Store these values in Codespaces or deployment secrets. Never paste private credentials into the browser.','muted'));
+   const providerLink=el('a','Open provider setup ↗','integration-provider-link');
+   providerLink.href=cfg.portal;providerLink.target='_blank';providerLink.rel='noopener noreferrer';
+   instruction.append(providerLink);
+  }
+  const check=button('Test connection',async()=>{
+   check.disabled=true;result.textContent='Checking server credentials…';
+   try{
+    const res=await fetch('/studio/api/integrations/'+encodeURIComponent(id)+'/test',{method:'POST',credentials:'same-origin',headers:{'X-Seasons-Studio':'integration-check'}});
+    const data=await res.json();
+    if(!res.ok)throw Error('Check unavailable');
+    result.textContent=(data.status==='verified'?'Connected to provider. ':'Not verified. ')+data.message;
+   }catch{result.textContent='Could not check the connection. Verify your server settings.'}
+   finally{check.disabled=false}
+  },true);
+  buttons.append(check);
+  modal.showModal();
  }
- root.append(wrap);
- const foot=section('Integration policy','Server-side only');
- foot.append(note('Notion owns editorial records. Supabase owns operational records and private files. Publishing, email sending and commercial rights operations remain disabled until separately reviewed.'));
+ for(const connection of records){
+  const tile=el('button','','integration-tile');tile.type='button';tile.dataset.connection=connection.id;
+  const top=el('div','','integration-tile-top');
+  const icon=el('span',display[connection.id]||'•','integration-tile-icon integration-icon--'+connection.id);
+  const arrow=el('span','↗','integration-tile-arrow');top.append(icon,arrow);
+  const title=el('strong',connection.name,'integration-tile-name');
+  const kind=el('p',category[connection.id]||'Service','integration-tile-category');
+  const state=el('span',label[connection.state]||'Not connected','integration-tile-state');
+  tile.append(top,title,kind,state);
+  tile.addEventListener('click',()=>launch(connection.id));
+  cards.append(tile);
+ }
+ directory.append(cards);root.append(directory,modal);
+ const foot=section('Access and permissions','YOUR CONTROL');
+ foot.append(note('Notion and Spotify support account authorization when their OAuth credentials and private token vault are configured. Other services use developer credentials or require additional setup. No connection automatically enables publishing, email sending, or rights approvals.'));
  root.append(foot);
+ connectionStates();
 }
 export function renderSystem(root,data,draft){const card=section('System & Security','Development');
 item(card,'Current access','Temporary server-side Basic authentication. Replace before production.');
