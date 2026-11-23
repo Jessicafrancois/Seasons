@@ -34,7 +34,7 @@ test('private Studio integrations endpoint and screen stay behind Studio auth',a
  assert.match(server,/path==='\/studio\/api\/integrations'/);
  assert.match(server,/integrationInventory\(\)/);
  assert.match(app,/fetch\('\/studio\/api\/integrations'/);
- assert.match(app,/renderIntegrations\(content,snapshot,integrationSnapshot\)/);
+ assert.match(app,/renderIntegrations\(content,snapshot,integrationSnapshot,studioSession,vaultSnapshot,refresh\)/);
  assert.match(page,/integration-tile/);
  assert.match(page,/integration-modal/);
  assert.match(page,/Continue to /);
