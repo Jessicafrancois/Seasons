@@ -8,6 +8,7 @@ import { publicDocument } from './server/public-document.js';
 import { operationalData, submitInquiry } from './server/studio-operations.js';
 import { centerLists, inquiryDetails, opportunityDetails } from './server/studio-centers.js';
 import { readDraft, saveDraft } from './server/studio-drafts.js';
+import { integrationInventory } from './server/studio-integrations.js';
 
 const root=resolve(import.meta.dirname,'public');
 const studioRoot=resolve(import.meta.dirname,'private/studio');
@@ -70,6 +71,10 @@ createServer(async(request,response)=>{
   }
   if(path==='/studio'||path==='/studio/'||path.startsWith('/studio/')){
    if(!protect(request,response))return;
+   if(path==='/studio/api/integrations'){
+    if(request.method!=='GET')return json(response,405,{error:'Method not allowed.'});
+    return json(response,200,integrationInventory());
+   }
    if(path==='/studio/api/overview'&&request.method==='GET'){
     try{return json(response,200,{...overview(),operations:await operationalData()})}
     catch{return json(response,503,{error:'Operations data temporarily unavailable.'})}
