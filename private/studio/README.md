@@ -182,3 +182,7 @@ From Studio → Notion & Integrations, click a card.
 Review MFA account recovery; rate limiting that is shared across all server instances (the current in-memory throttle is not sufficient for horizontally scaled deployments); login and session activity monitoring; load tests; key rotation and KMS options; deployment-origin and reverse-proxy assumptions; backup/recovery; provider permission audits; OAuth token refresh/revocation; and complete end-to-end security tests. These are not waived by a passing syntax check.
 
 `npm test` includes authentication and encryption regression tests. No real credentials are used in these tests.
+
+### Check setup before enabling secure mode
+
+Run `npm run studio:preflight` in the Codespace after its secrets are loaded. It prints only variable names and OK/MISSING indicators, not secret values. Fix any missing settings before opening `/studio/login`. Passing preflight does **not** confirm MFA enrollment, database membership, provider authorization, session revocation, deployment safety, or full integration tests. The public Vercel site may be on a separate runtime from your Codespace and requires its own secrets and deployment checks.
