@@ -170,9 +170,18 @@ export function renderIntegrations(root,data,inventory,session,vault,onUpdated){
    });
    buttons.append(connect);
   }else{
+   const problems={
+    oauth_disabled:'Account authorization is switched off in Vercel. Set STUDIO_OAUTH_ENABLED=true and redeploy.',
+    secure_signin_required:'Secure Studio sign-in must be enabled before connecting accounts.',
+    security_key_invalid:'The Studio session-security key is missing or invalid. Review the sensitive Vercel setting.',
+    encrypted_vault_unavailable:'The encrypted credential vault is not ready. Review STUDIO_VAULT_KEYS, STUDIO_VAULT_ACTIVE_KEY_ID, and server-side Supabase credentials in Vercel. Do not share their values.',
+    callback_origin_invalid:'The STUDIO_OAUTH_ORIGIN setting is missing or invalid. Set it to https://seasons-zeta-five.vercel.app and redeploy.',
+    provider_credentials_missing:'This provider is missing its OAuth client ID or secret in the running deployment. Check that both Production variables are nonempty and redeploy.'
+   };
+   const issue=authorization?.issue;
    const method=['supabase','email','apple-music','analytics'].includes(id)
     ? 'This service uses API credentials rather than an account-consent redirect. With secure founder sign-in, enter the credentials in the protected form below.'
-    : 'Account authorization is not enabled yet. Configure the provider application and secure server settings below.';
+    : problems[issue]||'Could not determine OAuth availability. Refresh the page and check the account authorization status.';
    instruction.append(note(method));
   }
   if(cfg){
