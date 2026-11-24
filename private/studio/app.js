@@ -29,10 +29,14 @@ for(const section of sections){
   }
  }else for(const [label,key] of section.items)navigation.append(navButton(label,key));
 }
-let editorTarget=null,editorGuard=null;
+let editorTarget=null,editorGuard=null,activeDocument=null;
+const routeHash=()=> '#'+active+(activeDocument?'/'+activeDocument:'');
 function navigate(key,target=null){
- if(editorGuard&&!editorGuard()){history.replaceState(null,'','#'+active);return;}
+ if(typeof key==='string'&&key.includes('/')){const parts=key.split('/');key=parts[0];if(!target)target=parts[1]||null;}
+ if(editorGuard&&!editorGuard()){history.replaceState(null,'',routeHash());return;}
  editorGuard=null;
+ activeDocument=['editor','compose'].includes(key)&&typeof target==='string'&&/^[a-f0-9-]{36}$/i.test(target)?target:null;
+ document.body.classList.toggle('atelier-focus',Boolean(activeDocument&&studioSession?.secure));
  if(target)editorTarget=target;
  if(!descriptions[key])key='overview';
  active=key;
@@ -44,9 +48,9 @@ function navigate(key,target=null){
  document.title=descriptions[key][0]+' | Seasons Studio';
  clear(content);
  if(['atelier','recent','editor','compose','revisions'].includes(key)&&studioSession?.secure){
-  renderAtelierToolbar(content,key,navigate);
-  const mount=el('div','','stack');content.append(mount);
-  renderAtelierDocuments(mount,key,studioSession,navigate,target,guard=>{editorGuard=guard});
+  if(!activeDocument)renderAtelierToolbar(content,key,navigate);
+  const mount=el('div','',activeDocument?'atelier-focus-mount':'stack');content.append(mount);
+  renderAtelierDocuments(mount,key,studioSession,navigate,activeDocument,guard=>{editorGuard=guard});
  }
  else if(key==='page-fields'&&studioSession?.secure){const mount=el('div','','stack');content.append(mount);renderCreativeWorkspace(mount,'editor',studioSession,navigate,editorTarget);}
  else if(key==='mapping')renderNotionSources(content,studioSession,true);
@@ -68,7 +72,7 @@ function navigate(key,target=null){
  else if(key==='integrations')renderIntegrations(content,snapshot,integrationSnapshot,studioSession,vaultSnapshot,refresh);
  else if(renderer[key])renderer[key](content,snapshot);
  else content.append(el('p','Sign in with your secure Studio account to use this workspace.','muted'));
- if(location.hash.slice(1)!==key)history.replaceState(null,'','#'+key);
+ if(location.hash!==routeHash())history.replaceState(null,'',routeHash());
 }
 async function refresh(){
  connect.textContent='Refreshing…';
@@ -91,7 +95,7 @@ async function refresh(){
  const logout=document.getElementById('studio-logout');
  if(logout)logout.hidden=!studioSession?.secure;
  connect.textContent=snapshot?'Operational data loaded':integrationSnapshot?'Integration status loaded · other data unavailable':'Data unavailable';
- navigate(active);
+ navigate(active,activeDocument);
 }
 const logoutButton=document.getElementById('studio-logout');
 if(logoutButton)logoutButton.addEventListener('click',async()=>{
