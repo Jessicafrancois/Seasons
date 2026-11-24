@@ -133,12 +133,12 @@ export function renderIntegrations(root,data,inventory,session,vault,onUpdated){
   email:['Verify an email sending domain','Send and receive correspondence only after delivery workflows are enabled','No messages are sent during connection setup'],
   spotify:['Read your Spotify profile for connecting listening features','No playlist edits, playback control, or library modification','You may revoke access from your Spotify account'],
   'apple-music':['Read approved catalog metadata with an Apple developer token','Listener sign-in requires a separate MusicKit integration','No Apple Music account access requested here'],
-  analytics:['Read aggregate site statistics','No new tracking code is installed from this screen','Review privacy and consent before collecting visitor data']
+  analytics:['Read aggregate PostHog reports using a project-scoped query:read key','No public tracking or session recording is activated from this screen','Private Studio pages and inquiry contents must remain excluded from analytics']
  };
  function launch(id){
   const record=records.find(x=>x.id===id);if(!record)return;
   modal.dataset.provider=id;
-  const cfg=id==='analytics'?null:inventory.setup?.[id];
+  const cfg=inventory.setup?.[id];
   heading.textContent=record.name;
   categoryLine.textContent=category[id]||'Service connection';
   description.textContent=record.purpose;
@@ -146,11 +146,6 @@ export function renderIntegrations(root,data,inventory,session,vault,onUpdated){
   for(const permission of permissionList[id]||[])permissions.append(el('li',permission));
   instruction.replaceChildren();buttons.replaceChildren();result.textContent='';
   const authorization=oauth.providers?.[id];
-  if(id==='analytics'){
-   instruction.append(note('Analytics provider under review. No tracking or provider credentials are required until a new measurement plan is approved.'));
-   modal.showModal();
-   return;
-  }
   if(oauth.connections?.[id]?.connected){
    instruction.append(note('Connected account: '+oauth.connections[id].label+'. Your connection has been saved securely. Other workflows may require separate setup.'));
    const remove=button('Disconnect from Studio',async()=>{
@@ -250,7 +245,7 @@ export function renderIntegrations(root,data,inventory,session,vault,onUpdated){
   const title=el('strong',connection.name,'integration-tile-name');
   const kind=el('p',category[connection.id]||'Service','integration-tile-category');
   const saved=vault?.providers?.some(x=>x.provider===connection.id);
-  const state=el('span',connection.id==='analytics'?'Provider under review':saved?'Credential saved':label[connection.state]||'Not connected','integration-tile-state');
+  const state=el('span',saved?'Credential saved':label[connection.state]||'Not connected','integration-tile-state');
   tile.append(top,title,kind,state);
   tile.addEventListener('click',()=>launch(connection.id));
   cards.append(tile);

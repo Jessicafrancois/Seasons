@@ -35,8 +35,8 @@ export function integrationInventory(){
     ready('APPLE_MUSIC_DEVELOPER_TOKEN')?'configured':'planned','Catalog links are separate from an authenticated Apple Music API integration.',
     'Begin with canonical release links; evaluate API access only where useful.'),
    entry('analytics','Audience analytics','Insights','Privacy-conscious visit and engagement reporting.',
-    ready('PLAUSIBLE_SITE_ID','PLAUSIBLE_API_KEY')?'configured':'planned','No tracking or analytics provider is running through Studio.',
-    'Choose the measurement policy and provider before collecting visitor data.')
+    ready('POSTHOG_PROJECT_ID','POSTHOG_PERSONAL_API_KEY','POSTHOG_REGION')?'configured':'planned','PostHog reporting uses read-only credentials. Event collection is not enabled by connecting an account.',
+    'Connect PostHog, then approve the measurement and privacy policy before collecting visitor data.')
   ]
  };
 }
@@ -48,7 +48,7 @@ const setup = Object.freeze({
  email:{required:['SEASONS_EMAIL_PROVIDER','SEASONS_EMAIL_API_KEY'],portal:'https://resend.com/domains',help:'The supported credential check is Resend (SEASONS_EMAIL_PROVIDER=resend). Verify your domain in Resend before enabling email delivery.'},
  spotify:{required:['SPOTIFY_CLIENT_ID','SPOTIFY_CLIENT_SECRET'],portal:'https://developer.spotify.com/dashboard',help:'Create a Spotify developer app and store client ID and secret on the server. This checks app-level access, not a listener login.'},
  'apple-music':{required:['APPLE_MUSIC_DEVELOPER_TOKEN'],portal:'https://developer.apple.com/documentation/applemusicapi',help:'Generate a valid Apple Music developer token in your Apple developer environment. User-specific MusicKit login is a separate feature.'},
- analytics:{required:['PLAUSIBLE_SITE_ID','PLAUSIBLE_API_KEY'],portal:'https://plausible.io/settings',help:'Optional privacy-conscious Plausible site analytics. Create an API key and set your registered site ID.'}
+ analytics:{required:['POSTHOG_PROJECT_ID','POSTHOG_REGION','POSTHOG_PERSONAL_API_KEY'],portal:'https://app.posthog.com/',help:'Create a PostHog project, note its numeric project ID and region (us or eu), then create a personal API key scoped to query:read for that project only. Enter these in the protected connection form below. Do not use the public project token as the reporting key.'}
 });
 export function integrationSetup(){
  return Object.fromEntries(Object.entries(setup).map(([id,value])=>[id,{...value}]));
@@ -106,11 +106,12 @@ export async function testIntegration(id){
     status=await statusOf(probeUrls['apple-music'],{Authorization:'Bearer '+process.env.APPLE_MUSIC_DEVELOPER_TOKEN});
     break;
    case 'analytics':{
-    const site=process.env.PLAUSIBLE_SITE_ID;
-    if(!/^[a-z0-9][a-z0-9.-]{1,253}$/i.test(site))
-     return {id,status:'invalid_config',message:'Invalid analytics site identifier.'};
-    status=await statusOf('https://plausible.io/api/v1/stats/aggregate?site_id='+encodeURIComponent(site)+'&period=day&metrics=visitors',{
-      Authorization:'Bearer '+process.env.PLAUSIBLE_API_KEY});
+    const project=process.env.POSTHOG_PROJECT_ID,region=process.env.POSTHOG_REGION;
+    if(!/^[1-9][0-9]{0,14}$/.test(project)||!['us','eu'].includes(region))
+     return {id,status:'invalid_config',message:'Invalid PostHog project ID or region.'};
+    status=await statusOf('https://'+region+'.posthog.com/api/projects/'+project+'/query/',{
+      Authorization:'Bearer '+process.env.POSTHOG_PERSONAL_API_KEY,'Content-Type':'application/json'},
+      {method:'POST',body:JSON.stringify({query:{kind:'HogQLQuery',query:"SELECT count() FROM events WHERE event = '$pageview' AND timestamp >= now() - INTERVAL 1 DAY"}})});
     break;
    }
   }

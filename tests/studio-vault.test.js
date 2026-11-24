@@ -9,7 +9,9 @@ test('credential validation refuses arbitrary network targets and missing requir
  assert.throws(()=>validateCredential('unknown',{apiKey:'123'}));
  assert.throws(()=>validateCredential('supabase',{url:'http://127.0.0.1:3000',serviceRoleKey:'abc'}));
  assert.throws(()=>validateCredential('supabase',{url:'https://example.com',serviceRoleKey:'abc'}));
- assert.deepEqual(validateCredential('analytics',{siteId:'seasons.example',apiKey:'xyz',ignored:'other'}),{siteId:'seasons.example',apiKey:'xyz'});
+ assert.deepEqual(validateCredential('analytics',{projectId:'12345',region:'us',apiKey:'xyz',ignored:'other'}),{projectId:'12345',region:'us',apiKey:'xyz'});
+ assert.throws(()=>validateCredential('analytics',{projectId:'12345',region:'example.com',apiKey:'xyz'}));
+ assert.throws(()=>validateCredential('analytics',{projectId:'../123',region:'eu',apiKey:'xyz'}));
 });
 test('versioned vault encrypts provider values before saving and never returns keys to UI',async()=>{
  const saved=[],prior=globalThis.fetch;

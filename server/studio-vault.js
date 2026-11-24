@@ -2,7 +2,7 @@ import {createCipheriv,createDecipheriv,randomBytes} from 'node:crypto';
 
 const definitions=Object.freeze({
  'email':['apiKey'],
- 'analytics':['siteId','apiKey'],
+ 'analytics':['projectId','region','apiKey'],
  'apple-music':['developerToken'],
  'supabase':['url','serviceRoleKey']
 });
@@ -73,7 +73,7 @@ export function validateCredential(provider,input){
   obj[field]=value.trim();
  }
  if(provider==='email'&&!/^re_[A-Za-z0-9_-]{8,}$/.test(obj.apiKey))throw Error('Expected a Resend API key');
- if(provider==='analytics'&&!/^[a-z0-9][a-z0-9.-]{1,253}$/i.test(obj.siteId))throw Error('Invalid site identifier');
+ if(provider==='analytics'&&(!/^[1-9][0-9]{0,14}$/.test(obj.projectId)||!['us','eu'].includes(obj.region)))throw Error('Invalid PostHog project or region');
  if(provider==='supabase'){
   const url=new URL(obj.url);
   if(url.protocol!=='https:'||!/^https:\/\/[a-z0-9-]+\.supabase\.co$/.test(url.origin)
@@ -89,8 +89,10 @@ export async function verifyCredential(provider,credentials){
    case 'email':
     url='https://api.resend.com/domains';headers={Authorization:'Bearer '+credentials.apiKey};break;
    case 'analytics':
-    url='https://plausible.io/api/v1/stats/aggregate?site_id='+encodeURIComponent(credentials.siteId)+'&period=day&metrics=visitors';
-    headers={Authorization:'Bearer '+credentials.apiKey};break;
+    if(!/^[1-9][0-9]{0,14}$/.test(credentials.projectId)||!['us','eu'].includes(credentials.region))throw Error('Invalid PostHog configuration');
+    url='https://'+credentials.region+'.posthog.com/api/projects/'+credentials.projectId+'/query/';
+    method='POST';headers={Authorization:'Bearer '+credentials.apiKey,'Content-Type':'application/json'};
+    body=JSON.stringify({query:{kind:'HogQLQuery',query:"SELECT count() FROM events WHERE event = '$pageview' AND timestamp >= now() - INTERVAL 1 DAY"}});break;
    case 'apple-music':
     url='https://api.music.apple.com/v1/catalog/us/charts?types=songs&limit=1';
     headers={Authorization:'Bearer '+credentials.developerToken};break;

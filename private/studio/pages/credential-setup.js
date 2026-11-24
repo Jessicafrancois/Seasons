@@ -4,7 +4,7 @@ const definitions={
  supabase:[['url','Supabase project URL','url'],['serviceRoleKey','Server-only service-role key','password']],
  email:[['apiKey','Resend API key','password']],
  'apple-music':[['developerToken','Apple Music developer token','password']],
- analytics:[['siteId','Plausible site ID','text'],['apiKey','Plausible API key','password']]
+ analytics:[['projectId','PostHog numeric project ID','text'],['region','Cloud region (us or eu)','text'],['apiKey','PostHog personal API key (query:read)','password']]
 };
 export function credentialSetup(instructions,actions,status,provider,session,vault,onUpdated){
  if(!definitions[provider])return;
