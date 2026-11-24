@@ -3,12 +3,15 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "node server.js",
-    "start": "node server.js",
+    "dev": "node --env-file-if-exists=.env server.js",
+    "start": "node --env-file-if-exists=.env server.js",
     "test": "node --test tests/*.test.js",
     "studio:preflight": "node scripts/studio-security-preflight.js"
   },
   "engines": {
     "node": ">=22"
+  },
+  "dependencies": {
+    "posthog-node": "^6.0.6"
   }
 }

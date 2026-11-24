@@ -1,3 +1,5 @@
+import { posthog, posthogLog } from './posthog.js';
+
 const types = new Set(['Collaboration', 'Sampling inquiry', 'Commercial use', 'General inquiry']);
 const recent = new Map();
 const WINDOW_MS = 10 * 60 * 1000;
@@ -77,6 +79,8 @@ export async function submitInquiry(request, response) {
       headers: { Prefer: 'return=minimal' },
       body: JSON.stringify({ contact_name: name, contact_email: email, inquiry_type: type, message, project_id: projectId || null })
     });
+    posthogLog?.info('inquiry_received', { inquiry_type: type, has_project_reference: Boolean(projectId) });
+    await posthog?.flush().catch(() => {});
     return send(response, 201, { received: true });
   } catch {
     return send(response, 503, { error: 'Delivery could not be confirmed. Your inquiry was not confirmed as received.' });
