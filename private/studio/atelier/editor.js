@@ -68,8 +68,8 @@ async function historyPanel(parent,doc,session,navigate,onRestore=null){
  }catch(e){panel.append(note(e.message,true))}
 }
 function editor(root,record,route,session,navigate,registerGuard){
- let document=validateDocument(record.document),name=record.name,revision=record.revision,selected=null,device='desktop',rail='layers',preview=false,advanced=false,dirty=false,saving=false,auto=false,timer=null,disposed=false,conflicted=false,zoom=100;
- let undo=[],redo=[];
+ let document=validateDocument(record.document),name=record.name,revision=record.revision,selected=null,device='desktop',rail='layers',preview=false,advanced=false,dirty=false,saving=false,auto=false,timer=null,disposed=false,conflicted=false,zoom=50;
+ let undo=[],redo=[],dragged=null;
  const state=()=>({document:structuredClone(document),name});
  const applyState=s=>{document=s.document;name=s.name;nameInput.value=name;if(selected&&!locate(document.nodes,selected))selected=null};
  const setStatus=s=>{status.textContent=s};
@@ -109,9 +109,9 @@ function editor(root,record,route,session,navigate,registerGuard){
  const top=el('div','','atelier-editor-top');
  const nameField=field('Document name','text',name,v=>{if(!v.trim()){nameField.input.value=name;return}recordChange(document,v.trim());render()});const nameInput=nameField.input;nameInput.maxLength=200;
  const status=el('p','Saved revision '+revision,'status');status.setAttribute('role','status');
- const mode=field('Mode','select',route,v=>navigate(v,record.id),[['editor','Canvas'],['compose','Compose']]);
+ const mode=field('Mode','select',route,v=>{route=v;render();setStatus(dirty?'Unsaved changes · same document':'Saved revision '+revision)},[['editor','Canvas'],['compose','Compose']]);
  const breakpoint=field('Device','select',device,v=>{device=v;render()},[['desktop','Desktop · 1440'],['tablet','Tablet · 768'],['mobile','Mobile · 390']]);
- const zoomControl=field('Zoom','select','100',v=>{zoom=Number(v);render()},[['100','100%'],['75','75%'],['50','50%']]);
+ const zoomControl=field('Zoom','select','50',v=>{zoom=Number(v);render()},[['100','100%'],['75','75%'],['50','50%'],['25','25%']]);
  const undoButton=button('Undo',()=>historyStep(undo,redo),true),redoButton=button('Redo',()=>historyStep(redo,undo),true);
  const previewButton=button('Preview',()=>{preview=!preview;render()},true);
  const saveButton=button('Save draft',save);
@@ -133,16 +133,24 @@ function editor(root,record,route,session,navigate,registerGuard){
   }left.append(tabs);
   if(rail==='layers'){
    left.append(el('h3','Document layers'));
+   const rootDrop=el('div','Drop here to move to document root','atelier-root-drop');
+   rootDrop.addEventListener('dragover',e=>{if(dragged)e.preventDefault()});
+   rootDrop.addEventListener('drop',e=>{e.preventDefault();if(dragged){const id=dragged;dragged=null;perform({type:'reparent',id,destination:null,placement:'inside'},id)}});left.append(rootDrop);
    if(!document.nodes.length)left.append(note('Use Insert to add your first element.'));
    function layers(nodes,parent,depth=0){
     for(const n of nodes){
      const row=el('div','','atelier-layer-row');
      const b=button((n.hidden?'○ ':n.locked?'🔒 ':'')+n.name,()=>{selected=n.id;render()},true);b.style.paddingLeft=(10+depth*12)+'px';
      if(selected===n.id)b.setAttribute('aria-current','true');
-     b.addEventListener('dragover',e=>{if(!preview)e.preventDefault()});
+     b.draggable=!n.locked;
+     b.addEventListener('dragstart',e=>{dragged=n.id;e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',n.id)});
+     b.addEventListener('dragend',()=>{dragged=null});
+     b.addEventListener('dragover',e=>{if(dragged&&dragged!==n.id)e.preventDefault()});
+     b.addEventListener('drop',e=>{e.preventDefault();e.stopPropagation();if(dragged&&dragged!==n.id){const id=dragged;dragged=null;perform({type:'reparent',id,destination:n.id,placement:containers.has(n.type)&&!e.shiftKey?'inside':'before'},id)}});
      row.append(b);parent.append(row);if(n.children.length)layers(n.children,parent,depth+1)
     }
    }layers(document.nodes,left);
+   left.append(el('p','Drag onto a container to nest; hold Shift to insert before it.','muted'));
    if(selected){
     const row=el('div','','actions');
     for(const [label,type,extra] of [['↑','move',{delta:-1}],['↓','move',{delta:1}],['Duplicate','duplicate',{prefix:uid()}],['Hide / show','hide',{}],['Lock / unlock','lock',{}],['Delete','remove',{}]]){
@@ -170,9 +178,9 @@ function editor(root,record,route,session,navigate,registerGuard){
   workspace.replaceChildren();
   const caption=el('p',(route==='compose'?'Compose':device[0].toUpperCase()+device.slice(1))+' · '+zoom+'% · private preview','atelier-canvas-label');
   const canvas=el('div','','atelier-artboard device-'+device);
-  canvas.style.width=(device==='desktop'?1440:device==='tablet'?768:390)*zoom/100+'px';
-  // Zoom is a viewport-width simulation in this foundation, not a pixel-perfect transform.
-  canvas.style.maxWidth='100%';
+  canvas.style.width=(device==='desktop'?1440:device==='tablet'?768:390)+'px';
+  canvas.style.zoom=String(zoom/100);
+  canvas.style.maxWidth='none';
   function renderNode(n,parent){
    if(n.hidden)return;
    const s=resolveStyle(n,device),wrap=el('div','','atelier-node node-'+n.type);
@@ -238,5 +246,12 @@ function editor(root,record,route,session,navigate,registerGuard){
   }
   if(device!=='desktop')right.append(button('Reset breakpoint overrides',()=>perform({type:'resetOverride',id:n.id,device}),true));
  }
+ shell.addEventListener('keydown',e=>{
+  if(!(e.ctrlKey||e.metaKey)||e.altKey)return;
+  if(e.key.toLowerCase()==='s'){e.preventDefault();save();return}
+  if(['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName))return;
+  if(e.key.toLowerCase()==='z'){e.preventDefault();e.shiftKey?historyStep(redo,undo):historyStep(undo,redo)}
+  if(e.key.toLowerCase()==='y'){e.preventDefault();historyStep(redo,undo)}
+ });
  render();
 }

@@ -60,7 +60,20 @@ export function command(document,action){
  }else{
   if(!target||target.ancestorLocked||(target.node.locked&&action.type!=='lock'))fail('locked or unknown node');
   const {node,siblings,index}=target;
-  if(action.type==='remove')siblings.splice(index,1);
+  if(action.type==='reparent'){
+   if(action.destination===node.id)return document;
+   if(action.destination&&locate(node.children,action.destination))fail('cyclic move');
+   const dest=action.destination?locate(next.nodes,action.destination):null;
+   if(action.destination&&(!dest||dest.node.locked||dest.ancestorLocked))fail('move destination');
+   if(action.placement==='inside'&&dest&&!containers.has(dest.node.type))fail('move container');
+   if(!['inside','before'].includes(action.placement))fail('move placement');
+   siblings.splice(index,1);
+   const relocated=action.destination?locate(next.nodes,action.destination):null;
+   if(!relocated)next.nodes.push(node);
+   else if(action.placement==='inside')relocated.node.children.push(node);
+   else relocated.siblings.splice(relocated.index,0,node);
+  }
+  else if(action.type==='remove')siblings.splice(index,1);
   else if(action.type==='move'){const dest=index+action.delta;if(![-1,1].includes(action.delta)||dest<0||dest>=siblings.length)return document;[siblings[index],siblings[dest]]=[siblings[dest],siblings[index]]}
   else if(action.type==='duplicate'){
    const copy=structuredClone(node);let indexId=0;

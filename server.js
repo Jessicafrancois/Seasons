@@ -283,7 +283,7 @@ export async function handleRequest(request,response){
    const asset=path.startsWith('/studio/assets/')?path.slice('/studio/assets'.length):null;
    if(asset!==null&&!studioAssets.has(asset))return json(response,404,{error:'Not found.'});
    if(path!=='/studio'&&path!=='/studio/'&&asset===null)return json(response,404,{error:'Not found.'});
-   response.setHeader('Content-Security-Policy',"default-src 'none'; connect-src 'self'; script-src 'self'; style-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'");
+   response.setHeader('Content-Security-Policy',"default-src 'none'; connect-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'");
    const file=asset===null?resolve(studioRoot,'index.html'):resolve(studioRoot,'.'+asset);
    if(!file.startsWith(studioRoot+sep))return json(response,404,{error:'Not found.'});
    const contents=await readFile(file);

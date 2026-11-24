@@ -26,3 +26,12 @@ test('seed is explicit structured content copy',()=>{
  const d=seedFromFields([{key:'title',label:'Title'},{key:'quote',label:'Quote'}],{title:'Fall',quote:'Time'});
  assert.equal(d.nodes[0].type,'heading');assert.equal(d.nodes[1].type,'quote');
 });
+
+test('reparent preserves IDs and rejects cycles',()=>{
+ let d=command(emptyDocument(),{type:'insert',nodeType:'stack',newId:'a'});
+ d=command(d,{type:'insert',parent:'a',nodeType:'stack',newId:'b'});
+ d=command(d,{type:'insert',nodeType:'paragraph',newId:'c'});
+ assert.throws(()=>command(d,{type:'reparent',id:'a',destination:'b',placement:'inside'}));
+ d=command(d,{type:'reparent',id:'c',destination:'b',placement:'inside'});
+ assert.equal(locate(d.nodes,'b').node.children[0].id,'c');
+});
