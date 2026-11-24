@@ -143,6 +143,19 @@ async function verifiedInvitedUser(request){
  if(!user?.id||!user.email_confirmed_at||user.is_anonymous===true||!(await membership(user.id)))throw Error('Denied');
  return {form,token,user};
 }
+// Supabase returns the TOTP QR as SVG (sometimes already packaged as a data URL).
+// Only deliver an image data URL to the browser; never interpolate SVG into HTML.
+function totpQrImage(svg){
+ if(typeof svg!=='string'||svg.length>100000)return null;
+ if(/^data:image\/svg\+xml(?:;charset=utf-8)?;base64,[A-Za-z0-9+/=]+$/i.test(svg))return svg;
+ let source=svg;
+ if(/^data:image\/svg\+xml(?:;charset=utf-8|;utf8)?,/i.test(source)){
+  try{source=decodeURIComponent(source.slice(source.indexOf(',')+1))}
+  catch{return null}
+ }
+ if(!/^\s*(?:<\?xml[^>]*>\s*)?<svg[\s>]/i.test(source))return null;
+ return 'data:image/svg+xml;base64,'+Buffer.from(source,'utf8').toString('base64');
+}
 export async function secureEnroll(request,response){
  if(!secureModeConfigured())return send(response,503,{error:'Secure Studio is not configured'});
  if(!trustedOrigin(request))return send(response,403,{error:'Origin denied'});
@@ -155,8 +168,8 @@ export async function secureEnroll(request,response){
    body:JSON.stringify({factor_type:'totp',friendly_name:'Seasons Studio'})
   });
   if(!result?.id||!result.totp?.secret)throw Error('Enrollment unavailable');
-  return send(response,200,{factorId:result.id,secret:result.totp.secret,
-   message:'Add this secret to your authenticator app. Next enter the six-digit code to finish setup.'});
+  return send(response,200,{factorId:result.id,secret:result.totp.secret,qrCode:totpQrImage(result.totp.qr_code),
+   message:'Scan the QR code with your authenticator app, or enter the secret manually. Then verify the six-digit code.'});
  }catch{return send(response,403,{error:'Authenticator setup unavailable. Check your invitation and password, or contact the founder.'})}
 }
 export async function secureConfirmEnrollment(request,response){
