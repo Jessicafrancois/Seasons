@@ -147,9 +147,9 @@ async function verifiedInvitedUser(request){
 // Only deliver an image data URL to the browser; never interpolate SVG into HTML.
 function totpQrImage(svg){
  if(typeof svg!=='string'||svg.length>100000)return null;
- if(/^data:image\/svg\+xml(?:;charset=utf-8)?;base64,[A-Za-z0-9+/=]+$/i.test(svg))return svg;
+ if(/^data:image\/svg\+xml(?:;charset=utf-8|;utf-8|;utf8)?;base64,[A-Za-z0-9+/=]+$/i.test(svg))return svg;
  let source=svg;
- if(/^data:image\/svg\+xml(?:;charset=utf-8|;utf8)?,/i.test(source)){
+ if(/^data:image\/svg\+xml(?:;charset=utf-8|;utf-8|;utf8)?,/i.test(source)){
   try{source=decodeURIComponent(source.slice(source.indexOf(',')+1))}
   catch{return null}
  }
