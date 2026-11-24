@@ -1,4 +1,5 @@
 import { openingApi } from './opening-api.js';
+import { posthog, posthogLog } from './server/posthog.js';
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { resolve, sep, extname } from 'node:path';
@@ -65,6 +66,7 @@ function sameOrigin(request){
  try{return new URL(origin).host===host && ['http:','https:'].includes(new URL(origin).protocol)}catch{return false}
 }
 export async function handleRequest(request,response){
+ let identity=null;
  try{
   const path=decodeURIComponent(new URL(request.url,'http://localhost').pathname);
   if(path==='/api/inquiries'&&request.method==='POST')return await submitInquiry(request,response);
@@ -88,7 +90,6 @@ export async function handleRequest(request,response){
    return await secureConfirmEnrollment(request,response);
   if(path==='/studio'||path==='/studio/'||path.startsWith('/studio/')){
    const mode=studioAuthMode();
-   let identity=null;
    if(mode==='secure'){
     if(!secureModeConfigured())return json(response,503,{error:'Secure Studio authentication is not configured.'});
     identity=await secureIdentity(request);
@@ -246,7 +247,14 @@ export async function handleRequest(request,response){
   const headers={'Content-Type':types[extname(file)]??'application/octet-stream'};
   if(path==='/service-worker.js')headers['Cache-Control']='no-cache';
   response.writeHead(200,headers).end(body);
- }catch{
+ }catch(error){
+  if(posthog){
+   try{
+    posthogLog?.error('request_handling_failed', { request_scope: identity ? 'studio' : 'public' });
+    posthog.captureException(error,identity?{distinctId:identity.id}:undefined);
+    await posthog.flush().catch(()=>{});
+   }catch{}
+  }
   response.writeHead(404).end('Page unavailable');
  }
 }
