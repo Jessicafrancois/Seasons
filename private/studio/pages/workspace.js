@@ -95,6 +95,7 @@ export function renderIntegrations(root,data,inventory,session,vault,onUpdated){
  const cards=el('div','','integration-tiles');
  const modal=document.createElement('dialog');modal.className='integration-modal';modal.setAttribute('aria-label','Connect a service');
  let oauth={};
+ let connectionCheckPending=true;
  async function connectionStates(){
   try{
    const res=await fetch('/studio/api/oauth/status',{cache:'no-store'});
@@ -103,6 +104,14 @@ export function renderIntegrations(root,data,inventory,session,vault,onUpdated){
     if(chip&&state.connected)chip.textContent='Connected';
    }}
   }catch{}
+  finally{
+   connectionCheckPending=false;
+   if(modal.open&&modal.dataset.provider){
+    const id=modal.dataset.provider;
+    modal.close();
+    launch(id);
+   }
+  }
  }
  const close=button('Close',()=>modal.close(),true);
  close.setAttribute('aria-label','Close connection details');
@@ -127,6 +136,7 @@ export function renderIntegrations(root,data,inventory,session,vault,onUpdated){
  };
  function launch(id){
   const record=records.find(x=>x.id===id);if(!record)return;
+  modal.dataset.provider=id;
   const cfg=inventory.setup?.[id];
   heading.textContent=record.name;
   categoryLine.textContent=category[id]||'Service connection';
@@ -181,7 +191,7 @@ export function renderIntegrations(root,data,inventory,session,vault,onUpdated){
    const issue=authorization?.issue;
    const method=['supabase','email','apple-music','analytics'].includes(id)
     ? 'This service uses API credentials rather than an account-consent redirect. With secure founder sign-in, enter the credentials in the protected form below.'
-    : problems[issue]||'Could not determine OAuth availability. Refresh the page and check the account authorization status.';
+    : connectionCheckPending?'Checking account authorization availability…':problems[issue]||'Could not determine OAuth availability. Refresh the page and check the account authorization status.';
    instruction.append(note(method));
   }
   if(cfg){
