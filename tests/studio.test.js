@@ -67,6 +67,11 @@ test('protected Studio and inquiry integration fail closed', async () => {
   const workingJs=await fetch(base+'/studio/assets/app.js',{headers:{Authorization:auth}});
   assert.equal(workingJs.status,200);
   assert.match(await workingJs.text(),/renderOverview/);
+  const playbackPath=base+'/studio/assets/atelier/playback.js';
+  assert.equal((await fetch(playbackPath)).status,401);
+  const playback=await fetch(playbackPath,{headers:{Authorization:auth}});
+  assert.equal(playback.status,200);
+  assert.match(await playback.text(),/export function createPlaybackController/);
   const css=await fetch(base+'/studio/assets/styles/studio.css',{headers:{Authorization:auth}});
   assert.equal(css.status,200);
   const forbidden=await fetch(base+'/studio/assets/data/opening-draft.json',{headers:{Authorization:auth}});

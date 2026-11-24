@@ -1,6 +1,7 @@
 import {el,section,button,note,field,table} from '../components/ui.js';
 import {kinds,types,containers,devices,assets,createNode,locate,command,resolveStyle,validateDocument} from './model.js';
 import {plugins,presets,triggers,easings,defaultMotion,animateLayer} from './motion.js';
+import {createPlaybackController} from './playback.js';
 const endpoint='/studio/api/atelier/';
 const labels={page:'Page',section:'Section',component:'Component',editorial:'Editorial document',experience:'Experience',scene:'Scene',moodboard:'Moodboard',storyboard:'Storyboard',experiment:'Experiment'};
 const nodeLabels={frame:'Frame',stack:'Stack',grid:'Grid',heading:'Heading',paragraph:'Paragraph',quote:'Quote',list:'List',image:'Image',video:'Video placeholder',audio:'Audio placeholder',button:'Button',shape:'Shape',divider:'Divider'};
@@ -74,6 +75,8 @@ function editor(root,record,route,session,navigate,registerGuard){
  let document=validateDocument(record.document),name=record.name,revision=record.revision,selected=null,device='desktop',rail='layers',preview=false,advanced=false,dirty=false,saving=false,auto=false,timer=null,disposed=false,conflicted=false,zoom=50;
  let undo=[],redo=[],dragged=null,insertDrag=null,showLeft=true,showRight=true,hand=false,fit=true,gesture=null,inline=null;
  let motionTab=false,pluginId='motion-effects',motionAnimations=new Map(),motionObserver=null,motionTimeline=false,motionTime=0;
+ const playback=createPlaybackController();
+ let timelineScrub=null;
  const clamp=(v,min,max)=>Math.min(max,Math.max(min,v));
  function finishInline(){if(inline){const commit=inline;inline=null;commit()}}
  function selectLayer(id){finishInline();selected=id;renderLeft();renderInspector();renderTimeline();for(const node of workspace.querySelectorAll('.atelier-node')){node.classList.toggle('selected',node.dataset.node===id);node.querySelector(':scope > .atelier-selection-tools')?.remove();if(node.dataset.node===id)addHandles(node,locate(document.nodes,id));}}
@@ -207,12 +210,53 @@ function editor(root,record,route,session,navigate,registerGuard){
  function addHandles(wrap,item){if(preview||hand||!item||item.node.locked||item.ancestorLocked)return;const tools=el('div','','atelier-selection-tools');const tag=el('span',item.node.name,'atelier-selection-label');const move=el('button','Move','atelier-move-handle');move.type='button';move.title='Drag to move absolute layer';move.setAttribute('aria-label','Move selected layer');move.addEventListener('pointerdown',e=>startGesture(e,wrap,item,'move'));tools.append(tag,move);for(const edge of ['right','bottom','corner']){const h=el('button','','atelier-resize-handle handle-'+edge);h.type='button';h.setAttribute('aria-label','Resize '+edge);h.addEventListener('pointerdown',e=>startGesture(e,wrap,item,edge));tools.append(h)}wrap.append(tools)}
  function startGesture(e,wrap,item,kind){if(e.button!==0||gesture)return;e.stopPropagation();e.preventDefault();const n=item.node,s=resolveStyle(n,device),rect=wrap.parentElement.getBoundingClientRect(),nodeRect=wrap.getBoundingClientRect(),factor=Number(workspace.querySelector('.atelier-artboard').style.zoom)||1;const x=e.clientX,y=e.clientY,initialLeft=(nodeRect.left-rect.left)/rect.width*100,initialTop=(nodeRect.top-rect.top)/Math.max(rect.height,1)*100;const handle=e.currentTarget;let changes={};gesture=kind;handle.setPointerCapture(e.pointerId);const move=ev=>{const dx=ev.clientX-x,dy=ev.clientY-y;if(kind==='move'){changes={position:'absolute',x:clamp(Math.round(initialLeft+dx/rect.width*100),0,100),y:clamp(Math.round(initialTop+dy/Math.max(rect.height,1)*100),0,100)};Object.assign(wrap.style,{position:'absolute',left:changes.x+'%',top:changes.y+'%'})}else{if(kind==='right'||kind==='corner'){changes.width=clamp(Math.round(s.width+dx/rect.width*100),10,100);wrap.style.width=changes.width+'%'}if(kind==='bottom'||kind==='corner'){changes.minHeight=clamp(Math.round(nodeRect.height/factor+dy/factor),0,1600);wrap.style.minHeight=changes.minHeight+'px'}}};const cleanup=()=>{gesture=null;handle.removeEventListener('pointermove',move);handle.removeEventListener('pointerup',end);handle.removeEventListener('pointercancel',cancel)};const end=()=>{cleanup();try{let next=document;for(const [key,value] of Object.entries(changes))next=command(next,{type:'style',id:n.id,device,key,value});recordChange(next);render()}catch(err){setStatus(err.message);render()}};const cancel=()=>{cleanup();render()};handle.addEventListener('pointermove',move);handle.addEventListener('pointerup',end);handle.addEventListener('pointercancel',cancel)}
  function dropOn(e,parentId,dest=null){if(preview||hand||(!insertDrag&&!dragged))return;e.preventDefault();e.stopPropagation();if(insertDrag){const type=insertDrag;insertDrag=null;insertType(type,parentId)}else if(dragged){const id=dragged;dragged=null;perform({type:'reparent',id,destination:dest||parentId,placement:dest?'before':'inside'},id)}}
- function stopMotion(){previewAbort?.abort();previewAbort=new AbortController();motionAnimations.forEach(a=>a.cancel());motionAnimations.clear();motionObserver?.disconnect();motionObserver=null;}
+ function stopMotion(){playback.stop();previewAbort?.abort();previewAbort=new AbortController();motionAnimations.forEach(a=>a.cancel());motionAnimations.clear();motionObserver?.disconnect();motionObserver=null;}
  function playLayer(node,m,override={}){const element=[...workspace.querySelectorAll('.atelier-node')].find(e=>e.dataset.node===node.id);if(!element||!m)return null;motionAnimations.get(node.id)?.cancel();const a=animateLayer(element,m,resolveStyle(node,device).opacity,override);if(a)motionAnimations.set(node.id,a);return a}
  function previewSelected(){stopMotion();const n=selected?locate(document.nodes,selected)?.node:null;if(n?.motion&&!playLayer(n,n.motion,{delay:0,fill:'none'}))setStatus('Motion preview unavailable or reduced motion is enabled.')}
  function motionNodes(){const list=[];function walk(nodes){for(const n of nodes){if(n.hidden)continue;if(n.motion)list.push(n);walk(n.children)}}walk(document.nodes);return list}
  function playPreview(){stopMotion();const nodes=motionNodes();if(typeof IntersectionObserver!=='undefined')motionObserver=new IntersectionObserver(entries=>{for(const e of entries){if(e.isIntersecting){const n=nodes.find(x=>x.id===e.target.dataset.node);if(n)playLayer(n,n.motion);motionObserver?.unobserve(e.target)}}},{root:workspace,threshold:.15});for(const n of nodes){const elem=[...workspace.querySelectorAll('.atelier-node')].find(e=>e.dataset.node===n.id);if(!elem)continue;if(n.motion.trigger==='enter')playLayer(n,n.motion);else if(n.motion.trigger==='viewport'){if(motionObserver)motionObserver.observe(elem);else playLayer(n,n.motion)}else{const hover=n.motion.trigger==='hover';const opts={signal:previewAbort.signal};const replay=e=>{if(!hover)e.stopPropagation();playLayer(n,n.motion,{fill:'none'})};elem.tabIndex=0;elem.setAttribute('aria-label',n.name+' · '+(hover?'motion on focus':'play motion'));if(!hover)elem.setAttribute('role','button');elem.addEventListener(hover?'pointerenter':'click',replay,opts);if(hover)elem.addEventListener('focus',replay,opts);else elem.addEventListener('keydown',e=>{if(e.target===elem&&['Enter',' '].includes(e.key)){e.preventDefault();replay(e)}},opts);}}}
- function renderTimeline(){timeline.replaceChildren();timeline.hidden=!motionTimeline||preview;center.classList.toggle('with-motion-timeline',!timeline.hidden);if(timeline.hidden)return;const nodes=motionNodes();const timed=nodes.filter(n=>n.motion.trigger==='enter');const total=Math.max(1000,...timed.map(n=>n.motion.delay+n.motion.duration*n.motion.repeat));const head=el('div','','atelier-timeline-head');head.append(el('strong','Motion timeline'),button('Play entrance sequence',()=>{stopMotion();for(const n of timed)playLayer(n,n.motion);},true),button('Stop',stopMotion,true));timeline.append(head);const scrub=field('Scrub (ms)','range',Math.min(motionTime,total),v=>{motionTime=Number(v);stopMotion();for(const n of timed){const a=playLayer(n,n.motion);if(a){a.pause();a.currentTime=motionTime}}});scrub.input.min=0;scrub.input.max=total;scrub.input.step=10;timeline.append(scrub.wrap);for(const n of nodes){const row=el('div','','atelier-timeline-track');const name=button(n.name,()=>{selectLayer(n.id);motionTab=true;renderInspector()},true);const track=el('div','','atelier-timeline-lane');const clip=el('div',presets[n.motion.preset].name,'atelier-timeline-clip');if(n.motion.trigger==='enter'){clip.style.marginLeft=(n.motion.delay/total*100)+'%';clip.style.width=(n.motion.duration*n.motion.repeat/total*100)+'%'}else{clip.textContent=n.motion.trigger+' · '+presets[n.motion.preset].name;clip.classList.add('event-clip')}track.append(clip);row.append(name,track);timeline.append(row)}if(!nodes.length)timeline.append(el('p','Apply an effect from Plugins or the Motion inspector to add a track.','muted'));}
+ function prepareEntranceTracks(nodes){
+  stopMotion();
+  return nodes.map(node=>playLayer(node,node.motion)).filter(Boolean).map(animation=>{
+   animation.pause();
+   return animation;
+  });
+ }
+ function setTimelineTime(time,tracks){
+  motionTime=time;
+  if(timelineScrub)timelineScrub.value=String(time);
+  for(const animation of tracks)animation.currentTime=time;
+ }
+ function renderTimeline(){
+  timeline.replaceChildren();
+  timelineScrub=null;
+  timeline.hidden=!motionTimeline||preview;
+  center.classList.toggle('with-motion-timeline',!timeline.hidden);
+  if(timeline.hidden)return;
+  const nodes=motionNodes();
+  const timed=nodes.filter(n=>n.motion.trigger==='enter');
+  const total=Math.max(1000,...timed.map(n=>n.motion.delay+n.motion.duration*n.motion.repeat));
+  const head=el('div','','atelier-timeline-head');
+  const play=button('Play entrance sequence',()=>{
+   const tracks=prepareEntranceTracks(timed);
+   if(tracks.length)playback.play(total,time=>setTimelineTime(time,tracks));
+  },true);
+  play.disabled=!timed.length;
+  head.append(el('strong','Motion timeline'),play,button('Stop',()=>{
+   stopMotion();
+   setTimelineTime(0,[]);
+  },true));
+  timeline.append(head);
+  const scrub=field('Scrub (ms)','range',Math.min(motionTime,total),v=>{
+   setTimelineTime(Number(v),prepareEntranceTracks(timed));
+  });
+  timelineScrub=scrub.input;
+  scrub.input.min=0;
+  scrub.input.max=total;
+  scrub.input.step=10;
+  scrub.input.disabled=!timed.length;
+  timeline.append(scrub.wrap);
+  for(const n of nodes){const row=el('div','','atelier-timeline-track');const name=button(n.name,()=>{selectLayer(n.id);motionTab=true;renderInspector()},true);const track=el('div','','atelier-timeline-lane');const clip=el('div',presets[n.motion.preset].name,'atelier-timeline-clip');if(n.motion.trigger==='enter'){clip.style.marginLeft=(n.motion.delay/total*100)+'%';clip.style.width=(n.motion.duration*n.motion.repeat/total*100)+'%'}else{clip.textContent=n.motion.trigger+' · '+presets[n.motion.preset].name;clip.classList.add('event-clip')}track.append(clip);row.append(name,track);timeline.append(row)}if(!nodes.length)timeline.append(el('p','Apply an effect from Plugins or the Motion inspector to add a track.','muted'));}
  let previewAbort=new AbortController();
  function renderCanvas(){previewAbort.abort();previewAbort=new AbortController();
   const scrollX=workspace.scrollLeft,scrollY=workspace.scrollTop;workspace.replaceChildren();
