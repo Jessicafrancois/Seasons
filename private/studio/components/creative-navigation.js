@@ -50,8 +50,8 @@ export const creativeGroups=[
   route('seasonal-themes','Seasonal Themes','Chapter-specific styling and approved theme versions.')
  ]},
  {label:'Plugins',items:[
-  route('plugins','Plugin Library','Discover the proposed first-party extensions.','foundation'),
-  route('installed-plugins','Installed Plugins','Manage enabled extensions when the runtime is available.'),
+  route('plugins','Plugin Library','Discover built-in motion extensions and proposed creative tools.','available'),
+  route('installed-plugins','Installed Plugins','Review the bundled motion extensions.','foundation'),
   route('developer-studio','Developer Studio','Extension manifests, capabilities, sandbox and review tools.')
  ]}
 ];

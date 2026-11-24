@@ -91,7 +91,7 @@ export async function renderCreativeDestination(root,key,snapshot,session,naviga
  }
  if(key==='experience'){
   const intro=section('Experience Studio','Initial foundation');
-  intro.append(note('The opening motion editor is available. Scene composition, video and audio editing, and a unified timeline are planned; no media processing or external animation runtime is installed.'));
+  intro.append(note('The opening motion editor and per-layer motion plugins are available. Open a Canvas document and select Motion to preview its entrance timeline. Scene composition, video and audio editing, and external plugin execution remain planned.'));
   root.append(intro);directory(root,atelierGroups.find(g=>g.label==='Experience Studio').items.filter(x=>x.key!==key),navigate);return;
  }
  if(key==='media'||key==='design'){
