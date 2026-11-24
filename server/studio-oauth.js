@@ -1,5 +1,5 @@
 import { randomBytes,createCipheriv,createDecipheriv,createHmac,timingSafeEqual } from 'node:crypto';
-import {vaultConfigured} from './studio-vault.js';
+import {vaultConfigured,vaultConfigurationIssue} from './studio-vault.js';
 
 const providers={
  notion:{authorization:'https://api.notion.com/v1/oauth/authorize',token:'https://api.notion.com/v1/oauth/token',
@@ -99,7 +99,8 @@ function oauthSetupIssue(id){
  if(process.env.STUDIO_OAUTH_ENABLED!=='true')return 'oauth_disabled';
  if(process.env.STUDIO_AUTH_MODE!=='secure')return 'secure_signin_required';
  if(!/^[a-fA-F0-9]{64}$/.test(process.env.STUDIO_SESSION_CSRF_KEY||''))return 'security_key_invalid';
- if(!vaultConfigured())return 'encrypted_vault_unavailable';
+ const vaultIssue=vaultConfigurationIssue();
+ if(vaultIssue)return vaultIssue;
  if(!safeOrigin())return 'callback_origin_invalid';
  const p=providers[id];
  if(!p||!process.env[p.id]?.trim()||!process.env[p.secret]?.trim())return 'provider_credentials_missing';
