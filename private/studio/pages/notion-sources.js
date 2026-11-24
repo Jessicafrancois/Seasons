@@ -1,4 +1,5 @@
 import {el,button,note} from '../components/ui.js';
+import {renderNotionMappings} from './notion-mappings.js';
 
 export function renderNotionSources(parent,session){
  const panel=el('div','','integration-modal-setup');
@@ -34,7 +35,13 @@ export function renderNotionSources(parent,session){
      finally{refresh.disabled=false}
     },true);
     toggle.disabled=!source.registered&&source.access!=='accessible';
-    row.append(title,detail,access,toggle);list.append(row);
+    row.append(title,detail,access,toggle);
+    if(source.registered&&source.access==='accessible'){
+     const mappingPanel=el('div');
+     const mappingButton=button('Map fields',()=>renderNotionMappings(mappingPanel,source,session),true);
+     row.append(mappingButton,mappingPanel);
+    }
+    list.append(row);
    }
   }catch(error){status.textContent=error.message||'Source discovery unavailable.'}
   finally{busy=false;refresh.disabled=false}
