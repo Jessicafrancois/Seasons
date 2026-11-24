@@ -95,13 +95,27 @@ export async function oauthTokensForServer(provider){
  return {accessToken:decrypt(record.encrypted_access_token,provider),
   refreshToken:decrypt(record.encrypted_refresh_token,provider),expiresAt:record.token_expires_at};
 }
+function oauthSetupIssue(id){
+ if(process.env.STUDIO_OAUTH_ENABLED!=='true')return 'oauth_disabled';
+ if(process.env.STUDIO_AUTH_MODE!=='secure')return 'secure_signin_required';
+ if(!/^[a-fA-F0-9]{64}$/.test(process.env.STUDIO_SESSION_CSRF_KEY||''))return 'security_key_invalid';
+ if(!vaultConfigured())return 'encrypted_vault_unavailable';
+ if(!safeOrigin())return 'callback_origin_invalid';
+ const p=providers[id];
+ if(!p||!process.env[p.id]?.trim()||!process.env[p.secret]?.trim())return 'provider_credentials_missing';
+ return null;
+}
 export function oauthAvailability(){
- return Object.fromEntries(Object.keys(providers).map(id=>[id,{
-  available:Boolean(config(id)&&safeOrigin()),
-  method:'oauth',
-  permissions:id==='notion'?['Select and authorize specific Notion pages','Read shared editorial content','Manage only the content allowed by your Notion integration capabilities']:
-   ['Read your Spotify account profile']
- }]));
+ return Object.fromEntries(Object.keys(providers).map(id=>{
+  const issue=oauthSetupIssue(id);
+  return [id,{
+   available:!issue,
+   issue,
+   method:'oauth',
+   permissions:id==='notion'?['Select and authorize specific Notion pages','Read shared editorial content','Manage only the content allowed by your Notion integration capabilities']:
+    ['Read your Spotify account profile']
+  }];
+ }));
 }
 function safeOrigin(){try{return Boolean(origin())}catch{return false}}
 export async function oauthConnections(){
