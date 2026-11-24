@@ -21,6 +21,7 @@ test('verified Studio member receives an SVG QR image and manual TOTP key after 
  const originalFetch=globalThis.fetch;
  const userId='123e4567-e89b-42d3-a456-426614174000',factorId='123e4567-e89b-42d3-a456-426614174111';
  const qrSvg='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2 2"><rect width="2" height="2"/></svg>';
+ let qrData=qrSvg;
  const response=()=>({
   status:null,headers:{},payload:null,
   writeHead(status,headers){this.status=status;this.headers=headers;return this},
@@ -43,7 +44,7 @@ test('verified Studio member receives an SVG QR image and manual TOTP key after 
    if(url.includes('/auth/v1/token?'))return ok({access_token:'test-password-session'});
    if(url.includes('/auth/v1/user'))return ok({id:userId,email_confirmed_at:'2026-11-24T00:00:00Z',factors:[]});
    if(url.includes('seasons_studio_members'))return ok([{user_id:userId,role:'Founder',confidentiality_clearance:'Founder Private',is_active:true}]);
-   if(url.endsWith('/auth/v1/factors'))return ok({id:factorId,totp:{secret:'TESTMANUALKEY',qr_code:qrSvg}});
+   if(url.endsWith('/auth/v1/factors'))return ok({id:factorId,totp:{secret:'TESTMANUALKEY',qr_code:qrData}});
    throw Error('Unexpected URL: '+url);
   };
   const res=response();
@@ -54,6 +55,17 @@ test('verified Studio member receives an SVG QR image and manual TOTP key after 
   assert.match(res.payload.qrCode,/^data:image\/svg\+xml;base64,/);
   const bytes=res.payload.qrCode.split(',')[1];
   assert.equal(Buffer.from(bytes,'base64').toString('utf8'),qrSvg);
+  const percentSvg='<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%"></svg>';
+  qrData='data:image/svg+xml;utf-8,'+percentSvg;
+  const second=response();
+  await secureEnroll(request,second);
+  assert.equal(second.status,200);
+  assert.equal(Buffer.from(second.payload.qrCode.split(',')[1],'base64').toString('utf8'),percentSvg);
+  qrData='data:image/svg+xml;utf-8,'+encodeURIComponent(percentSvg);
+  const third=response();
+  await secureEnroll(request,third);
+  assert.equal(third.status,200);
+  assert.equal(Buffer.from(third.payload.qrCode.split(',')[1],'base64').toString('utf8'),percentSvg);
  }finally{
   globalThis.fetch=originalFetch;
   for(const k of names){
