@@ -1,12 +1,12 @@
 import {el,button,note} from '../components/ui.js';
 import {renderNotionMappings} from './notion-mappings.js';
 
-export function renderNotionSources(parent,session){
- const panel=el('div','','integration-modal-setup');
+export function renderNotionSources(parent,session,autoLoad=false){
+ const panel=el('div','',autoLoad?'card stack':'integration-modal-setup');
  const heading=el('h3','Shared sources');
  const intro=el('p','Verify the existing Seasons sources and register only those you want to use in Studio. Nothing is imported or published.','muted');
  const status=el('p','','muted');status.setAttribute('role','status');
- const list=el('div','','integration-secrets');
+ const list=el('div','',autoLoad?'stack':'integration-secrets');
  let busy=false;
  const refresh=button('Discover shared sources',()=>load(),true);
  panel.append(heading,intro,refresh,status,list);parent.append(panel);
@@ -46,4 +46,5 @@ export function renderNotionSources(parent,session){
   }catch(error){status.textContent=error.message||'Source discovery unavailable.'}
   finally{busy=false;refresh.disabled=false}
  }
+ if(autoLoad)load();
 }

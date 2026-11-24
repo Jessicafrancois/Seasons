@@ -2,12 +2,12 @@ import {el,section,note,button,field} from '../components/ui.js';
 
 const defaults={rotation:8,tileSize:64,gap:4,duration:900,mode:'independent',solidColor:'#a4a99b',straightenOnZoom:true,fillViewport:true};
 
-export function renderEditor(root, serverDraft){
- let state={...defaults,...serverDraft?.draft}, dirty=false;
+export function renderEditor(root, serverDraft, persist=null){
+ let state={...defaults,...serverDraft?.draft}, dirty=false, zoomed=false;
  const layout=el('div','','editor-layout'),canvasPanel=section('Opening experience','Preview'),controlPanel=section('Properties','Draft');
  const canvas=el('div','','editor-canvas'),tiles=el('div','','grid-art');
  for(let i=0;i<80;i++){const tile=el('div');tile.dataset.index=String(i);tiles.append(tile);}
- canvas.append(tiles);canvasPanel.append(note('Editable settings preview. This is not yet the exact public opening renderer.'),canvas);
+ canvas.append(tiles);canvasPanel.append(note('Editable motion preview. This is not yet the exact public opening renderer.'),canvas,button('Toggle zoom preview',()=>{zoomed=!zoomed;draw()},true));
  const actions=el('div','','actions'),status=el('div','','status');status.setAttribute('role','status');
  const propertyInputs={};
  function updateState(key,value){state[key]=value;dirty=true;draw();status.textContent='Unsaved changes';}
@@ -25,17 +25,18 @@ export function renderEditor(root, serverDraft){
  const straighten=field('Straighten on zoom','checkbox',state.straightenOnZoom,v=>updateState('straightenOnZoom',v));controlPanel.append(straighten.wrap);
  const fill=field('Fill viewport','checkbox',state.fillViewport,v=>updateState('fillViewport',v));controlPanel.append(fill.wrap);
  function draw(){
-  tiles.style.transform='rotate('+state.rotation+'deg) scale('+((state.fillViewport?1.22:.88)*state.tileSize/64)+')';
+  tiles.style.transform='rotate('+(zoomed&&state.straightenOnZoom?0:state.rotation)+'deg) scale('+((state.fillViewport?1.22:.88)*state.tileSize/64*(zoomed?1.5:1))+')';
   tiles.style.gap=state.gap+'px';
   tiles.style.gridTemplateColumns='repeat(10,minmax(0,1fr))';
   tiles.style.setProperty('--solid-tile-color',state.solidColor);
   tiles.style.setProperty('--cycle',Math.max(3,state.duration/200*1.5)+'s');
-  for(const tile of tiles.children){const i=Number(tile.dataset.index);tile.style.setProperty('--tile-delay',(-((i*37)%70)/10)+'s');tile.style.setProperty('--photo-position',((i*17)%100)+'% '+((i*29)%100)+'%');tile.style.transitionDuration=state.duration+'ms';}
+  for(const tile of tiles.children){const i=Number(tile.dataset.index);tile.style.setProperty('--tile-delay',(state.mode==='sequence'?-i*.08:state.mode==='wave'?-(Math.floor(i/10)+i%10)*.3:-((i*37)%70)/10)+'s');tile.style.setProperty('--photo-position',((i*17)%100)+'% '+((i*29)%100)+'%');tile.style.transitionDuration=state.duration+'ms';}
   for(const key of ['rotation','tileSize','gap','duration'])propertyInputs[key].textContent=String(state[key])+(key==='rotation'?'°':key==='duration'?' ms':' px');
  }
  async function save(){
   status.textContent='Saving draft…';
   try{
+   if(persist){const result=await persist(state);dirty=false;status.textContent='Saved private motion draft · '+new Date(result.savedAt).toLocaleString();return;}
    const res=await fetch('/studio/api/draft',{method:'PUT',headers:{'Content-Type':'application/json','X-Seasons-Studio':'draft-editor'},body:JSON.stringify(state)});
    const result=await res.json();
    if(!res.ok)throw Error(result.error||'Save failed');
@@ -44,11 +45,11 @@ export function renderEditor(root, serverDraft){
  }
  const saveButton=button('Save draft',save);
  saveButton.disabled=!serverDraft?.enabled;
- actions.append(saveButton,button('Reset preview',()=>{state={...defaults};dirty=true;root.replaceChildren();renderEditor(root,{enabled:serverDraft?.enabled,draft:state});},true));
+ actions.append(saveButton,button('Reset preview',()=>{state={...defaults};dirty=true;root.replaceChildren();renderEditor(root,{enabled:serverDraft?.enabled,draft:state},persist);},true));
  if(!serverDraft?.enabled)controlPanel.append(note('Local draft saving is disabled. You can still explore the controls. Set STUDIO_LOCAL_DRAFTS=true for local persistence.',true));
  controlPanel.append(actions,status);
  layout.append(canvasPanel,controlPanel);
  root.append(layout);
- const caption=el('p','No publishing actions are available in this stage. Production persistence requires a database-backed revision system.','muted');root.append(caption);
+ const caption=el('p',persist?'Private motion settings only. The public opening is unchanged.':'No publishing actions are available in this stage. Production persistence requires a database-backed revision system.','muted');root.append(caption);
  draw();
 }

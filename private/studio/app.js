@@ -3,6 +3,8 @@ import {renderInquiryCenter} from './pages/inquiry-center.js';
 import {sections,descriptions,el,clear} from './components/ui.js';
 import {renderOverview,renderInquiries,renderAlerts,renderPages,renderAnalytics,renderSeasons,renderProjects,renderMedia,renderDesign,renderMotion,renderPublishing,renderIntegrations,renderSystem,renderSettings} from './pages/workspace.js';
 import {renderEditor} from './editor/opening.js';
+import {renderCreativeWorkspace} from './pages/creative.js';
+import {renderNotionSources} from './pages/notion-sources.js';
 
 const navigation=document.getElementById('studio-nav'),content=document.getElementById('studio-content');
 const title=document.getElementById('page-title'),description=document.getElementById('page-description'),connect=document.getElementById('connect-status');
@@ -15,7 +17,9 @@ for(const section of sections){
   b.addEventListener('click',()=>navigate(key));navigation.append(b);
  }
 }
-function navigate(key){
+let editorTarget=null;
+function navigate(key,target=null){
+ if(target)editorTarget=target;
  if(!descriptions[key])key='overview';
  active=key;
  for(const b of navigation.querySelectorAll('[data-route]')){
@@ -25,7 +29,9 @@ function navigate(key){
  description.textContent=descriptions[key][1];
  document.title=descriptions[key][0]+' | Seasons Studio';
  clear(content);
- if(key==='editor')renderEditor(content,editorDraft);
+ if(key==='mapping')renderNotionSources(content,studioSession,true);
+ else if(['pages','editor','seasons','projects','motion'].includes(key)&&studioSession?.secure){const mount=el('div','','stack');content.append(mount);renderCreativeWorkspace(mount,key,studioSession,navigate,editorTarget);}
+ else if(key==='editor')renderEditor(content,editorDraft);
  else if(key==='overview')renderOverview(content,snapshot,navigate);
  else if(key==='inquiries')renderInquiryCenter(content,snapshot,navigate);
  else if(key==='opportunities')renderOpportunities(content);

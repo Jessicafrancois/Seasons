@@ -1,7 +1,7 @@
 export const sections = [
  { group:'Operations', items:[['Overview','overview'],['Inquiries','inquiries'],['Opportunities','opportunities'],['Alerts','alerts'],['Analytics','analytics']] },
  { group:'Creative management', items:[['Page Inventory','pages'],['Page Editor','editor'],['Seasons Manager','seasons'],['Projects & Records','projects'],['Media Library','media'],['Design System','design'],['Motion Studio','motion']] },
- { group:'Platform', items:[['Publishing','publishing'],['Notion & Integrations','integrations'],['System & Security','system'],['Settings','settings']] }
+ { group:'Platform', items:[['Publishing','publishing'],['Notion & Integrations','integrations'],['Field Mapping','mapping'],['System & Security','system'],['Settings','settings']] }
 ];
 export const descriptions = {
  overview:['Overview','Your entire creative platform, at a glance.'],
@@ -18,6 +18,7 @@ export const descriptions = {
  motion:['Motion Studio','The rhythm and movement of each season.'],
  publishing:['Publishing','Review, preview and release changes.'],
  integrations:['Notion & Integrations','Connections powering the creative platform.'],
+ mapping:['Field Mapping','Manage shared Notion sources and their Studio fields.'],
  system:['System & Security','Technical status and access controls.'],
  settings:['Settings','Workspace preferences and configuration.']
 };

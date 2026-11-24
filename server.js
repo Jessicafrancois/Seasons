@@ -12,6 +12,7 @@ import { integrationInventory, testIntegration } from './server/studio-integrati
 import { oauthAvailability, oauthConnections, oauthStart, oauthCallback, oauthDisconnect } from './server/studio-oauth.js';
 import { discoverNotionSources,registerNotionSource } from './server/studio-notion-sources.js';
 import {getNotionMappings,saveNotionMappings} from './server/studio-notion-mappings.js';
+import {listCreativeDrafts,saveCreativeDraft} from './server/studio-creative-drafts.js';
 import {studioAuthMode,secureModeConfigured,trustedOrigin,secureLogin,secureEnroll,secureConfirmEnrollment,secureIdentity,csrfValid,secureLogout,requireManage} from './server/studio-secure-auth.js';
 import {vaultConfigured,vaultList,vaultSave,vaultDelete,serverCredential,verifyCredential} from './server/studio-vault.js';
 import {studioCan,studioCanSeeRecord} from './server/studio-permissions.js';
@@ -19,7 +20,7 @@ import {studioCan,studioCanSeeRecord} from './server/studio-permissions.js';
 const root=resolve(import.meta.dirname,'public');
 const studioRoot=resolve(import.meta.dirname,'private/studio');
 const types={'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.json':'application/json; charset=utf-8','.webp':'image/webp','.mp3':'audio/mpeg','.png':'image/png','.jpeg':'image/jpeg','.woff2':'font/woff2','.webmanifest':'application/manifest+json'};
-const studioAssets=new Set(['/app.js','/components/ui.js','/pages/workspace.js','/pages/credential-setup.js','/pages/notion-sources.js','/pages/notion-mappings.js','/pages/inquiry-center.js','/pages/opportunities.js','/editor/opening.js','/styles/studio.css','/styles/opportunities.css','/styles/inquiry-center.css']);
+const studioAssets=new Set(['/app.js','/components/ui.js','/pages/workspace.js','/pages/credential-setup.js','/pages/notion-sources.js','/pages/notion-mappings.js','/pages/creative.js','/pages/inquiry-center.js','/pages/opportunities.js','/editor/opening.js','/styles/studio.css','/styles/opportunities.css','/styles/inquiry-center.css']);
 
 function constantEquals(left,right){
  const a=Buffer.from(left),b=Buffer.from(right);
@@ -137,6 +138,18 @@ export async function handleRequest(request,response){
      const result=await registerNotionSource(payload,identity);
      return json(response,result.status,result.body);
     }catch{return json(response,503,{error:'Source discovery or registration is temporarily unavailable.'})}
+   }
+   if(path==='/studio/api/creative/drafts'){
+    if(mode!=='secure'||!requireManage(identity.member))return json(response,403,{error:'Access denied'});
+    try{
+     if(request.method==='GET')return json(response,200,{drafts:await listCreativeDrafts()});
+     if(request.method!=='POST')return json(response,405,{error:'Method not allowed'});
+     if(!csrfValid(request,identity)||!sameOrigin(request))return json(response,403,{error:'Request denied'});
+     let payload;
+     try{payload=await readJson(request,32000)}catch{return json(response,400,{error:'Invalid draft form'})}
+     const result=await saveCreativeDraft(payload,identity);
+     return json(response,result.status,result.body);
+    }catch{return json(response,503,{error:'Creative draft storage temporarily unavailable.'})}
    }
    if(path==='/studio/api/credentials'){
     if(mode!=='secure'||!requireManage(identity.member))return json(response,403,{error:'Access denied'});
