@@ -150,8 +150,13 @@ function totpQrImage(svg){
  if(/^data:image\/svg\+xml(?:;charset=utf-8|;utf-8|;utf8)?;base64,[A-Za-z0-9+/=]+$/i.test(svg))return svg;
  let source=svg;
  if(/^data:image\/svg\+xml(?:;charset=utf-8|;utf-8|;utf8)?,/i.test(source)){
-  try{source=decodeURIComponent(source.slice(source.indexOf(',')+1))}
-  catch{return null}
+  source=source.slice(source.indexOf(',')+1);
+  // Supabase may supply an unescaped SVG data URL. Raw SVG can contain
+  // percent signs (e.g. width="100%"), which decodeURIComponent rejects.
+  // Decode only when the SVG markup itself is percent-encoded.
+  if(/^\s*%3c/i.test(source)){
+   try{source=decodeURIComponent(source)}catch{return null}
+  }
  }
  if(!/^\s*(?:<\?xml[^>]*>\s*)?<svg[\s>]/i.test(source))return null;
  return 'data:image/svg+xml;base64,'+Buffer.from(source,'utf8').toString('base64');
