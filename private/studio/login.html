@@ -18,7 +18,7 @@ button{width:100%;background:#293b32;color:white;padding:14px;border:0;border-ra
 button:disabled{opacity:.7}input:focus-visible,button:focus-visible{outline:2px solid #536e5c;outline-offset:2px}
 #status{min-height:22px}footer{margin-top:24px;font-size:12px;color:#7a7f76;text-align:center}
 a{color:inherit}
-details{margin-top:24px;border-top:1px solid #e2e4dc;padding-top:18px}summary{cursor:pointer;font-size:12px;color:#4c6654}details button{margin-top:16px}.totp-secret{display:block;background:#eff2ed;border-radius:8px;padding:12px;word-break:break-all;font-size:12px}#enroll-result[hidden]{display:none}</style>
+details{margin-top:24px;border-top:1px solid #e2e4dc;padding-top:18px}summary{cursor:pointer;font-size:12px;color:#4c6654}details button{margin-top:16px}.totp-secret{display:block;background:#eff2ed;border-radius:8px;padding:12px;word-break:break-all;font-size:12px}.totp-qr{display:block;width:220px;height:220px;max-width:100%;margin:16px auto;background:white;border:12px solid white;border-radius:10px}.totp-qr[hidden]{display:none}#enroll-result[hidden]{display:none}</style>
 <script defer src="/studio/login.js"></script>
 </head>
 <body><main>
@@ -41,7 +41,9 @@ details{margin-top:24px;border-top:1px solid #e2e4dc;padding-top:18px}summary{cu
 <button type="submit">Generate authenticator setup</button>
 </form>
 <section id="enroll-result" hidden>
-<p>Copy this secret into your authenticator app. Never share it.</p>
+<p>In your authenticator app, choose <strong>Add account</strong> and scan this QR code. If scanning is unavailable, enter the setup key below manually. Keep both private.</p>
+<img id="totp-qr" class="totp-qr" width="220" height="220" alt="Scan to add Seasons Studio to your authenticator app" hidden>
+<p id="totp-manual-note">Manual setup key</p>
 <code id="totp-secret" class="totp-secret"></code>
 <form id="confirm-form">
 <input type="hidden" name="factorId">
