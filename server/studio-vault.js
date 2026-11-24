@@ -92,7 +92,7 @@ export async function verifyCredential(provider,credentials){
     if(!/^[1-9][0-9]{0,14}$/.test(credentials.projectId)||!['us','eu'].includes(credentials.region))throw Error('Invalid PostHog configuration');
     url='https://'+credentials.region+'.posthog.com/api/projects/'+credentials.projectId+'/query/';
     method='POST';headers={Authorization:'Bearer '+credentials.apiKey,'Content-Type':'application/json'};
-    body=JSON.stringify({query:{kind:'HogQLQuery',query:"SELECT count() FROM events WHERE event = '$pageview' AND timestamp >= now() - INTERVAL 1 DAY"}});break;
+    body=JSON.stringify({query:{kind:'HogQLQuery',query:"SELECT count() AS pageviews FROM events WHERE event = '$pageview' AND toDate(timestamp) = today()"},name:'seasons_studio_connection_check'});break;
    case 'apple-music':
     url='https://api.music.apple.com/v1/catalog/us/charts?types=songs&limit=1';
     headers={Authorization:'Bearer '+credentials.developerToken};break;
@@ -103,6 +103,18 @@ export async function verifyCredential(provider,credentials){
   }
   const response=await fetch(url,{method,headers,redirect:'error',signal:AbortSignal.timeout(8000)});
   if(response.status>=200&&response.status<300)return {ok:true,message:'Provider credentials verified. Setup of individual workflows may still be required.'};
+  if(provider==='analytics'){
+   // Never return raw upstream error details: they can contain query or credential data.
+   const error=await response.json().catch(()=>null);
+   const code=error?.code;
+   const reason=code==='invalid_project'?'Check the numeric project ID and cloud region.':
+    code==='invalid_payload'?'PostHog rejected the reporting request format.':
+    response.status===400?'PostHog rejected the reporting query or project configuration.':
+    response.status===401?'Check the personal API key.':
+    response.status===403?'Check query:read permission and project access.':
+    response.status===429?'PostHog rate limit reached. Try again later.':'PostHog reporting is unavailable.';
+   return {ok:false,message:reason+' (HTTP '+response.status+').'};
+  }
   return {ok:false,message:'Provider could not authorize the requested read-only check (HTTP '+response.status+').'};
  }catch{return {ok:false,message:'Provider could not be reached or its configuration was invalid.'}}
 }

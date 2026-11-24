@@ -111,7 +111,7 @@ export async function testIntegration(id){
      return {id,status:'invalid_config',message:'Invalid PostHog project ID or region.'};
     status=await statusOf('https://'+region+'.posthog.com/api/projects/'+project+'/query/',{
       Authorization:'Bearer '+process.env.POSTHOG_PERSONAL_API_KEY,'Content-Type':'application/json'},
-      {method:'POST',body:JSON.stringify({query:{kind:'HogQLQuery',query:"SELECT count() FROM events WHERE event = '$pageview' AND timestamp >= now() - INTERVAL 1 DAY"}})});
+      {method:'POST',body:JSON.stringify({query:{kind:'HogQLQuery',query:"SELECT count() AS pageviews FROM events WHERE event = '$pageview' AND toDate(timestamp) = today()"},name:'seasons_studio_connection_check'})});
     break;
    }
   }
