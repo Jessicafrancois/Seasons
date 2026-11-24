@@ -177,9 +177,13 @@ export function renderIntegrations(root,data,inventory,session,vault,onUpdated){
   }
   if(cfg){
    instruction.append(el('h3','Connection settings'));
-   instruction.append(el('p',cfg.help,'muted'));
+   const oauthSetup=id==='notion'||id==='spotify';
+   const keys=oauthSetup?(id==='notion'?['NOTION_OAUTH_CLIENT_ID','NOTION_OAUTH_CLIENT_SECRET']:['SPOTIFY_CLIENT_ID','SPOTIFY_CLIENT_SECRET']):cfg.required;
+   instruction.append(el('p',oauthSetup
+    ?'Create an OAuth application with the provider and add its client ID and secret as sensitive Production environment variables in Vercel. Register this exact callback: https://seasons-zeta-five.vercel.app/studio/oauth/callback. The authorization button appears after these settings and OAuth are enabled.'
+    :cfg.help,'muted'));
    const list=el('div','','integration-secrets');
-   for(const key of cfg.required){
+   for(const key of keys){
     const line=el('div','','integration-secret-line');
     line.append(el('code',key));
     const copy=button('Copy',async()=>{
@@ -189,7 +193,7 @@ export function renderIntegrations(root,data,inventory,session,vault,onUpdated){
     line.append(copy);list.append(line);
    }
    instruction.append(list);
-   instruction.append(el('p','Store these values in Codespaces or deployment secrets. Never paste private credentials into the browser.','muted'));
+   instruction.append(el('p',oauthSetup?'Save OAuth application secrets in Vercel Production settings, never in GitHub or chat. The provider authorization screen will handle the account consent.':'Store server credentials in protected deployment secrets or use the authenticated Founder credential form for supported services. Never put secrets in public source code.','muted'));
    const providerLink=el('a','Open provider setup ↗','integration-provider-link');
    providerLink.href=cfg.portal;providerLink.target='_blank';providerLink.rel='noopener noreferrer';
    instruction.append(providerLink);
