@@ -76,7 +76,7 @@ export async function handleRequest(request,response){
    response.setHeader('Cache-Control','no-store');
    response.setHeader('X-Content-Type-Options','nosniff');
    response.setHeader('Referrer-Policy','no-referrer');
-   response.setHeader('Content-Security-Policy',"default-src 'none'; script-src 'self'; style-src 'unsafe-inline'; connect-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'");
+   response.setHeader('Content-Security-Policy',"default-src 'none'; script-src 'self'; style-src 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'");
    const file=resolve(studioRoot,path.endsWith('.js')?'login.js':'login.html');
    return response.writeHead(200,{'Content-Type':types[extname(file)]}).end(await readFile(file));
   }
