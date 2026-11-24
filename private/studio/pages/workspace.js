@@ -184,7 +184,12 @@ export function renderIntegrations(root,data,inventory,session,vault,onUpdated){
     oauth_disabled:'Account authorization is switched off in Vercel. Set STUDIO_OAUTH_ENABLED=true and redeploy.',
     secure_signin_required:'Secure Studio sign-in must be enabled before connecting accounts.',
     security_key_invalid:'The Studio session-security key is missing or invalid. Review the sensitive Vercel setting.',
-    encrypted_vault_unavailable:'The encrypted credential vault is not ready. Review STUDIO_VAULT_KEYS, STUDIO_VAULT_ACTIVE_KEY_ID, and server-side Supabase credentials in Vercel. Do not share their values.',
+    encrypted_vault_unavailable:'The encrypted credential vault is not ready. Review its Vercel Production settings.',
+    vault_keys_missing:'STUDIO_VAULT_KEYS is missing from this deployment. Add its JSON keyring in Vercel Production and redeploy.',
+    vault_keys_invalid_json:'STUDIO_VAULT_KEYS is not valid JSON. Use a JSON object with the active key ID mapped to a 64-character hex value. Fix it in Vercel Production and redeploy.',
+    vault_active_key_missing:'STUDIO_VAULT_ACTIVE_KEY_ID does not match a key in STUDIO_VAULT_KEYS. Make the ID and JSON property match exactly, then redeploy.',
+    vault_active_key_invalid:'The active STUDIO_VAULT_KEYS entry is not a 64-character hexadecimal key. Correct it in Vercel Production and redeploy.',
+    vault_database_configuration_missing:'The server cannot find the Supabase credentials required by the encrypted vault. Check the server-only Production variables and redeploy.',
     callback_origin_invalid:'The STUDIO_OAUTH_ORIGIN setting is missing or invalid. Set it to https://seasons-zeta-five.vercel.app and redeploy.',
     provider_credentials_missing:'This provider is missing its OAuth client ID or secret in the running deployment. Check that both Production variables are nonempty and redeploy.'
    };
