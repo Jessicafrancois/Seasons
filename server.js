@@ -13,6 +13,7 @@ import { oauthAvailability, oauthConnections, oauthStart, oauthCallback, oauthDi
 import { discoverNotionSources,registerNotionSource } from './server/studio-notion-sources.js';
 import {getNotionMappings,saveNotionMappings} from './server/studio-notion-mappings.js';
 import {listCreativeDrafts,saveCreativeDraft} from './server/studio-creative-drafts.js';
+import {atelierRequest} from './server/studio-atelier.js';
 import {studioAuthMode,secureModeConfigured,trustedOrigin,secureLogin,secureEnroll,secureConfirmEnrollment,secureIdentity,csrfValid,secureLogout,requireManage} from './server/studio-secure-auth.js';
 import {vaultConfigured,vaultList,vaultSave,vaultDelete,serverCredential,verifyCredential} from './server/studio-vault.js';
 import {studioCan,studioCanSeeRecord} from './server/studio-permissions.js';
@@ -20,7 +21,7 @@ import {studioCan,studioCanSeeRecord} from './server/studio-permissions.js';
 const root=resolve(import.meta.dirname,'public');
 const studioRoot=resolve(import.meta.dirname,'private/studio');
 const types={'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.json':'application/json; charset=utf-8','.webp':'image/webp','.mp3':'audio/mpeg','.png':'image/png','.jpeg':'image/jpeg','.woff2':'font/woff2','.webmanifest':'application/manifest+json'};
-const studioAssets=new Set(['/app.js','/components/ui.js','/components/creative-navigation.js','/pages/atelier.js','/pages/workspace.js','/pages/credential-setup.js','/pages/notion-sources.js','/pages/notion-mappings.js','/pages/creative.js','/pages/inquiry-center.js','/pages/opportunities.js','/editor/opening.js','/styles/studio.css','/styles/opportunities.css','/styles/inquiry-center.css']);
+const studioAssets=new Set(['/app.js','/components/ui.js','/components/creative-navigation.js','/pages/atelier.js','/atelier/model.js','/atelier/editor.js','/pages/workspace.js','/pages/credential-setup.js','/pages/notion-sources.js','/pages/notion-mappings.js','/pages/creative.js','/pages/inquiry-center.js','/pages/opportunities.js','/editor/opening.js','/styles/studio.css','/styles/opportunities.css','/styles/inquiry-center.css']);
 
 function constantEquals(left,right){
  const a=Buffer.from(left),b=Buffer.from(right);
@@ -138,6 +139,18 @@ export async function handleRequest(request,response){
      const result=await registerNotionSource(payload,identity);
      return json(response,result.status,result.body);
     }catch{return json(response,503,{error:'Source discovery or registration is temporarily unavailable.'})}
+   }
+   const atelierRoute=path.match(/^\/studio\/api\/atelier\/(documents|[a-f0-9-]+(?:\/revisions(?:\/[0-9]+)?)?)$/i);
+   if(atelierRoute){
+    if(mode!=='secure'||!requireManage(identity.member))return json(response,403,{error:'Access denied'});
+    if(!['GET','POST','PUT'].includes(request.method))return json(response,405,{error:'Method not allowed'});
+    if(request.method!=='GET'&&(!csrfValid(request,identity)||!sameOrigin(request)))return json(response,403,{error:'Request denied'});
+    try{
+     let payload=null;
+     if(request.method!=='GET'){try{payload=await readJson(request,250000)}catch{return json(response,400,{error:'Invalid document request'})}}
+     const result=await atelierRequest(request.method,atelierRoute[1],payload,identity);
+     return json(response,result.status,result.body);
+    }catch{return json(response,503,{error:'Atelier document storage temporarily unavailable.'})}
    }
    if(path==='/studio/api/creative/drafts'){
     if(mode!=='secure'||!requireManage(identity.member))return json(response,403,{error:'Access denied'});

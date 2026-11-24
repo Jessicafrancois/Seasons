@@ -7,6 +7,7 @@ import {renderCreativeWorkspace} from './pages/creative.js';
 import {renderNotionSources} from './pages/notion-sources.js';
 import {currentEditorRoutes,atelierRoutes,allCreativeRoutes} from './components/creative-navigation.js';
 import {renderAtelierToolbar,renderCreativeDestination} from './pages/atelier.js';
+import {renderAtelierDocuments} from './atelier/editor.js';
 
 const navigation=document.getElementById('studio-nav'),content=document.getElementById('studio-content');
 const title=document.getElementById('page-title'),description=document.getElementById('page-description'),connect=document.getElementById('connect-status');
@@ -28,8 +29,10 @@ for(const section of sections){
   }
  }else for(const [label,key] of section.items)navigation.append(navButton(label,key));
 }
-let editorTarget=null;
+let editorTarget=null,editorGuard=null;
 function navigate(key,target=null){
+ if(editorGuard&&!editorGuard()){history.replaceState(null,'','#'+active);return;}
+ editorGuard=null;
  if(target)editorTarget=target;
  if(!descriptions[key])key='overview';
  active=key;
@@ -40,7 +43,13 @@ function navigate(key,target=null){
  description.textContent=descriptions[key][1];
  document.title=descriptions[key][0]+' | Seasons Studio';
  clear(content);
- if(key==='mapping')renderNotionSources(content,studioSession,true);
+ if(['atelier','recent','editor','compose','revisions'].includes(key)&&studioSession?.secure){
+  renderAtelierToolbar(content,key,navigate);
+  const mount=el('div','','stack');content.append(mount);
+  renderAtelierDocuments(mount,key,studioSession,navigate,target,guard=>{editorGuard=guard});
+ }
+ else if(key==='page-fields'&&studioSession?.secure){const mount=el('div','','stack');content.append(mount);renderCreativeWorkspace(mount,'editor',studioSession,navigate,editorTarget);}
+ else if(key==='mapping')renderNotionSources(content,studioSession,true);
  else if(currentEditorRoutes.has(key)&&studioSession?.secure){
   if(atelierRoutes.has(key))renderAtelierToolbar(content,key,navigate);
   const mount=el('div','','stack');content.append(mount);renderCreativeWorkspace(mount,key,studioSession,navigate,editorTarget);

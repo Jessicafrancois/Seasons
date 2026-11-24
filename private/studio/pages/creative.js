@@ -83,7 +83,7 @@ export async function renderCreativeWorkspace(root,route,session,navigate,target
      if(i===0)return el('span',d.title);
      if(i===1)return d.category;
      if(i===2)return badge(d);
-     const row=el('div','','actions');row.append(button('Edit draft',()=>d.category==='Motion'?navigate('motion'):navigate('editor',d.key),true));if(d.route)row.append(publicLink(d));return row;
+     const row=el('div','','actions');row.append(button('Edit draft',()=>d.category==='Motion'?navigate('motion'):navigate('page-fields',d.key),true));if(d.route)row.append(publicLink(d));return row;
     }));
    }
    update();return;
@@ -96,7 +96,7 @@ export async function renderCreativeWorkspace(root,route,session,navigate,target
   card.append(note(isSeason?'Only the configured Fall chapter is live. Winter, Spring and Summer remain future chapter work.':'This is the public content registry, not an imported Notion catalog. Placeholder works remain labeled.'),button('Field mapping',mapping,true),grid);
   for(const d of records){
    const item=el('div','','card');item.append(el('span',d.category+(d.placeholder?' · Placeholder':''),'creative-field-meta'),el('h3',d.values.title||d.title),el('p',d.values.description||d.route,'muted'),el('p',badge(d),'muted'));
-   const actions=el('div','','actions');actions.append(button('Edit draft',()=>navigate('editor',d.key),true),publicLink(d));item.append(actions);grid.append(item);
+   const actions=el('div','','actions');actions.append(button('Edit draft',()=>navigate('page-fields',d.key),true),publicLink(d));item.append(actions);grid.append(item);
   }
   if(!records.length)grid.append(el('p','No configured works in this category. Notion import is not enabled yet.','muted'));
   root.append(card);

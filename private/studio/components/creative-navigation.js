@@ -5,8 +5,8 @@ export const creativeGroups=[
  {label:'Atelier',items:[
   route('atelier','Atelier home','Choose a document and enter the creative workspace.','available'),
   route('recent','Recent Documents','Recently saved private documents and motion drafts.','available'),
-  route('editor','Canvas Editor','Edit a page draft with a content preview.','foundation'),
-  route('compose','Compose Editor','Work on the same page draft through its editorial fields.','foundation'),
+  route('editor','Canvas Editor','Design structured private documents with layers and a property inspector.','foundation'),
+  route('compose','Compose Editor','Write and arrange blocks in the shared Atelier document.','foundation'),
   route('motion','Motion Editor','Adjust and save the opening motion preview.','foundation'),
   route('experience','Experience Studio','Plan multimedia scenes and interactive sequences.','foundation')
  ]},
@@ -14,7 +14,7 @@ export const creativeGroups=[
   route('pages','Page Inventory','Search and edit configured public page routes.','available'),
   route('templates','Page Templates','Create reusable page structures and section templates.'),
   route('drafts','Drafts','View the saved private drafts.','available'),
-  route('revisions','Revisions','Review current saved revision numbers; historical snapshots are not stored yet.','foundation')
+  route('revisions','Revisions','Browse immutable Atelier document snapshots and restore into a new revision.','foundation')
  ]},
  {label:'Seasons Manager',items:[
   route('seasons','Active Chapter','Review the active chapter and edit its private content.','available'),

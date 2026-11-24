@@ -24,7 +24,9 @@ export const descriptions = {
  settings:['Settings','Workspace preferences and configuration.']
 };
 for(const item of Object.values(allCreativeRoutes))if(!descriptions[item.key])descriptions[item.key]=[item.label,item.description];
-descriptions.editor=['Canvas Editor','Page content and private draft preview.'];
+descriptions.editor=['Canvas Editor','Design structured private documents on an editable canvas.'];
+descriptions.compose=['Compose Editor','Work with the same document through its editorial blocks.'];
+descriptions['page-fields']=['Page field drafts','Existing page metadata and content drafts.'];
 descriptions.motion=['Motion Editor','Opening motion and animation preview.'];
 descriptions.seasons=['Active Chapter','Manage the current seasonal chapter.'];
 export function el(tag, text='', className='') { const node=document.createElement(tag);node.textContent=String(text);if(className)node.className=className;return node; }
