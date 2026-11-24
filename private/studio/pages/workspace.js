@@ -75,7 +75,8 @@ export function renderDesign(root){const card=section('Design System','Foundatio
 export function renderMotion(root){const card=section('Motion Studio','Preview');card.append(note('The opening editor contains initial motion settings. Reusable transition presets and a full animation timeline are planned.'));root.append(card);}
 export function renderPublishing(root){const card=section('Publishing','Disabled');card.append(note('Publishing is intentionally disabled. Local draft settings are not public releases, and current Fall content remains unchanged.',true));root.append(card);}
 export function renderIntegrations(root,data,inventory,session,vault,onUpdated){
- const records=inventory?.connections||[];
+ // Internal infrastructure belongs in System & Security, not account connections.
+ const records=(inventory?.connections||[]).filter(record=>!['supabase','storage'].includes(record.id));
  const callbackState=new URLSearchParams(location.search).get('connection');
  if(callbackState){
   const messages={connected:'Account authorized and saved securely.',denied:'Authorization was cancelled or denied.',invalid_state:'Authorization expired. Try connecting again.',unavailable:'The provider could not be connected. Review your setup and retry.'};
@@ -86,7 +87,7 @@ export function renderIntegrations(root,data,inventory,session,vault,onUpdated){
  const directory=section('Connected services','ACCOUNT CONNECTIONS');
  directory.classList.add('integration-directory');
  const intro=el('p','Give Seasons permission to access the content and accounts you choose. You can review each connection before authorizing it.','muted');
- const summary=el('div','','integration-summary');summary.append(el('strong','Your creative workspace'),el('span','Notion · Supabase · Music · Communications'));
+ const summary=el('div','','integration-summary');summary.append(el('strong','Your creative workspace'),el('span','Notion · Music · Communications'));
  directory.append(intro,summary);
  if(!records.length){directory.append(note('The connections register is unavailable. Refresh Studio to try again.'));root.append(directory);return;}
  const display={notion:'N',supabase:'S',storage:'S',email:'@',spotify:'♫','apple-music':'♪',analytics:'↗'};
@@ -137,7 +138,7 @@ export function renderIntegrations(root,data,inventory,session,vault,onUpdated){
  function launch(id){
   const record=records.find(x=>x.id===id);if(!record)return;
   modal.dataset.provider=id;
-  const cfg=inventory.setup?.[id];
+  const cfg=id==='analytics'?null:inventory.setup?.[id];
   heading.textContent=record.name;
   categoryLine.textContent=category[id]||'Service connection';
   description.textContent=record.purpose;
@@ -145,6 +146,11 @@ export function renderIntegrations(root,data,inventory,session,vault,onUpdated){
   for(const permission of permissionList[id]||[])permissions.append(el('li',permission));
   instruction.replaceChildren();buttons.replaceChildren();result.textContent='';
   const authorization=oauth.providers?.[id];
+  if(id==='analytics'){
+   instruction.append(note('Analytics provider under review. No tracking or provider credentials are required until a new measurement plan is approved.'));
+   modal.showModal();
+   return;
+  }
   if(oauth.connections?.[id]?.connected){
    instruction.append(note('Connected account: '+oauth.connections[id].label+'. Your connection has been saved securely. Other workflows may require separate setup.'));
    const remove=button('Disconnect from Studio',async()=>{
@@ -244,7 +250,7 @@ export function renderIntegrations(root,data,inventory,session,vault,onUpdated){
   const title=el('strong',connection.name,'integration-tile-name');
   const kind=el('p',category[connection.id]||'Service','integration-tile-category');
   const saved=vault?.providers?.some(x=>x.provider===connection.id);
-  const state=el('span',saved?'Credential saved':label[connection.state]||'Not connected','integration-tile-state');
+  const state=el('span',connection.id==='analytics'?'Provider under review':saved?'Credential saved':label[connection.state]||'Not connected','integration-tile-state');
   tile.append(top,title,kind,state);
   tile.addEventListener('click',()=>launch(connection.id));
   cards.append(tile);
@@ -258,6 +264,7 @@ export function renderIntegrations(root,data,inventory,session,vault,onUpdated){
 export function renderSystem(root,data,draft,session){const card=section('System & Security',session?.secure?'Individual sign-in':'Development');
 item(card,'Current access',session?.secure?'Individual Supabase Auth account, MFA-verified membership, revocable server session':'Temporary Basic authentication for trusted local testing only.');
 item(card,'Current role',session?.role||'Unavailable');
+item(card,'Database and media infrastructure',data?.operations?.storageConnected?'Supabase operations database reachable; media permissions verified separately':'Database connection status unavailable');
 item(card,'Draft storage',draft?.enabled?'Local development file persistence enabled':'Disabled. Set STUDIO_LOCAL_DRAFTS=true in local development.');
 item(card,'Operations API',data?'Available':'Unavailable');
 card.append(note('Before production activation: verify shared rate limiting, deployment runtime, audit monitoring, MFA recovery, token rotation and an independent security review.',true));root.append(card);}
