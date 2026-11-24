@@ -6,13 +6,24 @@ const definitions=Object.freeze({
  'apple-music':['developerToken'],
  'supabase':['url','serviceRoleKey']
 });
-export function vaultConfigured(){
- try{
-  const keys=JSON.parse(process.env.STUDIO_VAULT_KEYS||'{}'),active=process.env.STUDIO_VAULT_ACTIVE_KEY_ID;
-  return Boolean(active&&/^[a-zA-Z0-9_-]{1,48}$/.test(active)&&typeof keys[active]==='string'&&/^[0-9a-f]{64}$/i.test(keys[active])
-   && process.env.SUPABASE_URL&&process.env.SUPABASE_SERVICE_ROLE_KEY);
- }catch{return false}
+// Expose only a fixed diagnostic category to authenticated Studio founders.
+// Never return active IDs, key material, parsed objects, or raw configuration.
+export function vaultConfigurationIssue(){
+ if(!process.env.STUDIO_VAULT_KEYS)return 'vault_keys_missing';
+ let keys;
+ try{keys=JSON.parse(process.env.STUDIO_VAULT_KEYS)}
+ catch{return 'vault_keys_invalid_json'}
+ if(!keys||typeof keys!=='object'||Array.isArray(keys))return 'vault_keys_invalid_json';
+ const active=process.env.STUDIO_VAULT_ACTIVE_KEY_ID;
+ if(!active||!/^[a-zA-Z0-9_-]{1,48}$/.test(active)||!Object.hasOwn(keys,active))
+  return 'vault_active_key_missing';
+ if(typeof keys[active]!=='string'||!/^[0-9a-f]{64}$/i.test(keys[active]))
+  return 'vault_active_key_invalid';
+ if(!process.env.SUPABASE_URL||!process.env.SUPABASE_SERVICE_ROLE_KEY)
+  return 'vault_database_configuration_missing';
+ return null;
 }
+export function vaultConfigured(){return vaultConfigurationIssue()===null}
 function keyFor(id){
  const keys=JSON.parse(process.env.STUDIO_VAULT_KEYS||'{}');
  if(!/^[a-zA-Z0-9_-]{1,48}$/.test(id)||!/^[0-9a-f]{64}$/i.test(keys[id]||''))throw Error('Key unavailable');
