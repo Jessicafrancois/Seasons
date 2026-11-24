@@ -26,8 +26,8 @@ export async function renderCreativeWorkspace(root,route,session,navigate,target
    root.append(toolbar);const panel=el('div');root.append(panel);
    renderEditor(panel,{enabled:true,draft:d.values,savedAt:d.savedAt},values=>persist(d,values));return;
   }
-  if(route==='editor'){
-   const toolbar=section('Choose a page','Private editor');
+  if(route==='editor'||route==='compose'){
+   const toolbar=section('Choose a page',route==='compose'?'Compose · private draft':'Canvas · private draft');
    const selected=pages.find(d=>d.key===target)||pages[0];
    const picker=field('Page','select',selected.key,()=>show(picker.input.value),pages.map(d=>[d.key,d.title+' · '+d.category]));
    toolbar.append(picker.wrap,button('Opening motion',()=>navigate('motion'),true),button('Field mapping',mapping,true));root.append(toolbar);
@@ -36,7 +36,7 @@ export async function renderCreativeWorkspace(root,route,session,navigate,target
     if(dirty&&!confirm('Discard unsaved changes?')){picker.input.value=area.dataset.key;return;}
     dirty=false;area.dataset.key=key;area.replaceChildren();
     const d=pages.find(p=>p.key===key);
-    const layout=el('div','','grid-two');
+    const layout=el('div','',route==='compose'?'stack':'grid-two');
     const controls=section(d.title,badge(d)),preview=section('Draft content preview','Not the live renderer');
     const fields=el('div','','creative-fields'),values={...d.values};
     const status=el('p',d.savedAt?'Last saved '+new Date(d.savedAt).toLocaleString():'No private draft saved','creative-status');status.setAttribute('role','status');
@@ -60,39 +60,45 @@ export async function renderCreativeWorkspace(root,route,session,navigate,target
    }
    show(selected.key);return;
   }
-  if(route==='pages'){
-   const card=section('Page inventory',pages.length+' routes');
+  if(['pages','drafts','revisions','recent','preview'].includes(route)){
+   const isDraftView=['drafts','revisions','recent'].includes(route);
+   const inventory=route==='recent'||route==='revisions'?drafts:pages;
+   const candidates=isDraftView?inventory.filter(d=>d.revision>0).sort((a,b)=>String(b.savedAt).localeCompare(String(a.savedAt))):inventory;
+   const labels={pages:'Page inventory',drafts:'Saved page drafts',revisions:'Current revisions',recent:'Recent documents',preview:'Preview and live pages'};
+   const card=section(labels[route],candidates.length+(isDraftView?' saved':' routes'));
    const filters=el('div','','creative-toolbar'),result=el('div');
    const search=field('Find a page','search','',update);
    search.input.addEventListener('input',update);
    const category=field('Category','select','All',update,['All','Core','Season','Project','Track'].map(x=>[x,x]));
    const statusFilter=field('Draft status','select','all',update,[['all','All'],['saved','Saved draft'],['source','Source only']]);
    filters.append(search.wrap,category.wrap,statusFilter.wrap);
-   card.append(note('Live routes are sourced from the existing public content registry. Drafts remain private.'),filters,result);
+   card.append(note(route==='revisions'?'Current revision numbers only. Immutable revision history and restore are not yet implemented.':route==='preview'?'Open a draft in Canvas for a content preview, or view its existing public route. Publishing is disabled.':isDraftView?'These are saved private drafts, ordered by last save.':'Live routes are sourced from the existing public content registry. Drafts remain private.'),filters,result);
    root.append(card);
    function update(){
     const q=search.input.value.toLowerCase(),kind=category.input.value,status=statusFilter.input.value;
-    const shown=pages.filter(d=>(kind==='All'||d.category===kind)&&(!q||(d.title+' '+d.route).toLowerCase().includes(q))&&(status==='all'||(status==='saved'?d.revision>0:d.revision===0)));
+    const shown=candidates.filter(d=>(kind==='All'||d.category===kind)&&(!q||(d.title+' '+(d.route||'')).toLowerCase().includes(q))&&(status==='all'||(status==='saved'?d.revision>0:d.revision===0)));
     result.replaceChildren();
-    if(!shown.length){result.append(el('p','No matching pages','muted'));return;}
+    if(!shown.length){result.append(el('p',isDraftView?'No saved drafts match this view. Open a page and save a private draft to begin.':'No matching pages','muted'));return;}
     result.append(table(['Page','Category','Draft','Actions'],shown,(d,i)=>{
      if(i===0)return el('span',d.title);
      if(i===1)return d.category;
      if(i===2)return badge(d);
-     const row=el('div','','actions');row.append(button('Edit draft',()=>navigate('editor',d.key),true),publicLink(d));return row;
+     const row=el('div','','actions');row.append(button('Edit draft',()=>d.category==='Motion'?navigate('motion'):navigate('editor',d.key),true));if(d.route)row.append(publicLink(d));return row;
     }));
    }
    update();return;
   }
   const isSeason=route==='seasons';
-  const records=pages.filter(d=>isSeason?d.category==='Season':['Project','Track'].includes(d.category));
-  const card=section(isSeason?'Season chronology':'Creative catalog',records.length+' configured');
+  const records=pages.filter(d=>isSeason?d.category==='Season':route==='albums'?d.projectType==='Album':route==='songs'?d.category==='Track':route==='visual-collections'?d.projectType==='Visual collection':route==='editorial-works'?d.projectType==='Writing':['Project','Track'].includes(d.category));
+  const catalogLabels={albums:'Albums',songs:'Songs','visual-collections':'Visual Collections','editorial-works':'Editorial Works'};
+  const card=section(isSeason?'Season chronology':catalogLabels[route]||'Creative catalog',records.length+' configured');
   const grid=el('div','','creative-records');
   card.append(note(isSeason?'Only the configured Fall chapter is live. Winter, Spring and Summer remain future chapter work.':'This is the public content registry, not an imported Notion catalog. Placeholder works remain labeled.'),button('Field mapping',mapping,true),grid);
   for(const d of records){
    const item=el('div','','card');item.append(el('span',d.category+(d.placeholder?' · Placeholder':''),'creative-field-meta'),el('h3',d.values.title||d.title),el('p',d.values.description||d.route,'muted'),el('p',badge(d),'muted'));
    const actions=el('div','','actions');actions.append(button('Edit draft',()=>navigate('editor',d.key),true),publicLink(d));item.append(actions);grid.append(item);
   }
+  if(!records.length)grid.append(el('p','No configured works in this category. Notion import is not enabled yet.','muted'));
   root.append(card);
   if(isSeason){const chronology=section('Chapter sequence','Planned chronology');chronology.append(el('p','Season 1 · Fall → Winter → Spring → Summer','muted'),note('Future chapter creation, activation and historical archive access are not changed by editing a draft.'));root.append(chronology);}
  }catch(error){if(root.isConnected){root.replaceChildren(note(error.message||'Creative workspace unavailable',true),button('Retry',()=>renderCreativeWorkspace(root,route,session,navigate,target),true))}}

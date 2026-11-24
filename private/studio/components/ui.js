@@ -1,6 +1,7 @@
+import {creativeGroups,allCreativeRoutes} from './creative-navigation.js';
 export const sections = [
  { group:'Operations', items:[['Overview','overview'],['Inquiries','inquiries'],['Opportunities','opportunities'],['Alerts','alerts'],['Analytics','analytics']] },
- { group:'Creative management', items:[['Page Inventory','pages'],['Page Editor','editor'],['Seasons Manager','seasons'],['Projects & Records','projects'],['Media Library','media'],['Design System','design'],['Motion Studio','motion']] },
+ { group:'Creative management', groups:creativeGroups },
  { group:'Platform', items:[['Publishing','publishing'],['Notion & Integrations','integrations'],['Field Mapping','mapping'],['System & Security','system'],['Settings','settings']] }
 ];
 export const descriptions = {
@@ -22,6 +23,10 @@ export const descriptions = {
  system:['System & Security','Technical status and access controls.'],
  settings:['Settings','Workspace preferences and configuration.']
 };
+for(const item of Object.values(allCreativeRoutes))if(!descriptions[item.key])descriptions[item.key]=[item.label,item.description];
+descriptions.editor=['Canvas Editor','Page content and private draft preview.'];
+descriptions.motion=['Motion Editor','Opening motion and animation preview.'];
+descriptions.seasons=['Active Chapter','Manage the current seasonal chapter.'];
 export function el(tag, text='', className='') { const node=document.createElement(tag);node.textContent=String(text);if(className)node.className=className;return node; }
 export function clear(node) { node.replaceChildren();return node; }
 export function section(title,tag='') { const card=el('section','','card');const head=el('div','','section-title');head.append(el('h2',title));if(tag)head.append(el('span',tag,'tag'));card.append(head);return card; }

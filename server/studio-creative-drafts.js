@@ -15,7 +15,7 @@ export function creativeDefinitions(){
   else if(opening){
    const active=seasons[0];fields=[textField('title','Workspace title',page.title),textField('intro','Intro text',active.intro,4000,true),textField('enter','Enter button',active.cta.enter),textField('explore','Explore button',active.cta.explore)];
   }
-  return {key:page.route,...page,fields,placeholder:Boolean(project?.label?.toLowerCase().includes('placeholder')||page.category==='Track'||project?.label?.includes('study'))};
+  return {key:page.route,...page,fields,projectType:project?.type||(page.category==='Track'?'Song':null),placeholder:Boolean(project?.label?.toLowerCase().includes('placeholder')||page.category==='Track'||project?.label?.includes('study'))};
  });
  definitions.push({key:'motion:opening',title:'Opening motion',category:'Motion',fields:[],source:'Studio preview'});
  return definitions;
