@@ -154,8 +154,9 @@ export async function handleRequest(request,response){
    }
    if(path==='/studio/api/oauth/status'&&request.method==='GET'){
     if(mode==='secure'&&!requireManage(identity.member))return json(response,403,{error:'Permission denied'});
-    try{return json(response,200,{providers:oauthAvailability(),connections:await oauthConnections()})}
-    catch{return json(response,503,{error:'Account connection status unavailable.'})}
+    const providers=oauthAvailability();
+    try{return json(response,200,{providers,connections:await oauthConnections()})}
+    catch{return json(response,200,{providers,connections:{},connectionStatus:'unavailable'})}
    }
    const disconnect=path.match(/^\/studio\/api\/oauth\/connections\/(notion|spotify)$/);
    if(disconnect){
