@@ -28,6 +28,13 @@ const confirmForm=document.getElementById('confirm-form');
 const enrollStatus=document.getElementById('enroll-status');
 const enrollmentResult=document.getElementById('enroll-result');
 const secretNode=document.getElementById('totp-secret');
+const qrNode=document.getElementById('totp-qr');
+function clearEnrollmentImage(){
+ qrNode.removeAttribute('src');
+ qrNode.hidden=true;
+ secretNode.textContent='';
+}
+
 async function authPost(path,body){
  const response=await fetch(path,{method:'POST',credentials:'same-origin',
   headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
@@ -43,11 +50,17 @@ enrollForm.addEventListener('submit',async event=>{
   const result=await authPost('/studio/auth/enroll',{
    email:enrollForm.elements.email.value,password:enrollForm.elements.password.value
   });
+  clearEnrollmentImage();
   secretNode.textContent=result.secret;
+  // Only use the server-issued local SVG image. Never load a third-party QR service.
+  if(typeof result.qrCode==='string'&&/^data:image\/svg\+xml;base64,[A-Za-z0-9+/=]+$/i.test(result.qrCode)){
+   qrNode.src=result.qrCode;
+   qrNode.hidden=false;
+  }
   confirmForm.elements.factorId.value=result.factorId;
   enrollmentResult.hidden=false;
-  enrollStatus.textContent='Open your authenticator app and enter the secret above. Then verify the current code.';
- }catch(error){enrollStatus.textContent=error.message;enrollmentResult.hidden=true;secretNode.textContent=''}
+  enrollStatus.textContent=qrNode.hidden?'Enter the manual setup key into your authenticator, then verify the current code.':'Scan the QR code with your authenticator app, then verify the current code.';
+ }catch(error){enrollStatus.textContent=error.message;enrollmentResult.hidden=true;clearEnrollmentImage()}
  finally{submit.disabled=false}
 });
 confirmForm.addEventListener('submit',async event=>{
@@ -60,7 +73,7 @@ confirmForm.addEventListener('submit',async event=>{
    factorId:confirmForm.elements.factorId.value,code:confirmForm.elements.code.value
   });
   enrollStatus.textContent=result.message;
-  enrollmentResult.hidden=true;secretNode.textContent='';
+  enrollmentResult.hidden=true;clearEnrollmentImage();
   enrollForm.reset();confirmForm.reset();
  }catch(error){enrollStatus.textContent=error.message}
  finally{submit.disabled=false}
