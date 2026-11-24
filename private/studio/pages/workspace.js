@@ -1,5 +1,6 @@
 import { el, clear, section, item, button, note, table, field } from '../components/ui.js';
 import { credentialSetup } from './credential-setup.js';
+import { renderNotionSources } from './notion-sources.js';
 
 function metric(name,value,detail){const card=el('div','','card');card.append(el('div',name,'metric-name'),el('div',value,'metric-value'),el('div',detail,'muted'));return card;}
 function empty(message){return el('div',message,'empty');}
@@ -165,6 +166,7 @@ export function renderIntegrations(root,data,inventory,session,vault,onUpdated){
     }catch{result.textContent='Could not remove the connection. Try again.'}
     finally{remove.disabled=false}
    },true);
+   if(id==='notion')renderNotionSources(instruction,session);
    buttons.append(remove);
   }else if(authorization?.available){
    instruction.append(note('Your account authorization will open on the provider website. Review its permission screen and select the content you wish to share.'));
