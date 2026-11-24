@@ -1,4 +1,5 @@
 // Versioned, deterministic document model shared by editor and server.
+import {validateMotion} from './motion.js';
 export const kinds=['page','section','component','editorial','experience','scene','moodboard','storyboard','experiment'];
 export const types=['frame','stack','grid','heading','paragraph','quote','list','image','video','audio','button','shape','divider'];
 export const containers=new Set(['frame','stack','grid']);
@@ -24,14 +25,14 @@ export function validateDocument(value){
  const ids=new Set();let count=0;
  function visit(node,depth){
   if(++count>150||depth>10)fail('document size or nesting');
-  exact(node,['id','type','name','text','assetId','alt','hidden','locked','style','overrides','children'],'node');
+  exact(node,['id','type','name','text','assetId','alt','hidden','locked','style','overrides','children','motion'],'node');
   if(!idOk(node.id)||ids.has(node.id)||!types.includes(node.type)||!str(node.name,100)||!node.name.trim()||!str(node.text,8000)||!str(node.alt,500)||typeof node.hidden!=='boolean'||typeof node.locked!=='boolean')fail('node fields');
   ids.add(node.id);
   if(node.assetId!==null&&!(node.type==='image'&&assets.some(a=>a.id===node.assetId)))fail('asset reference');
   exact(node.overrides,['tablet','mobile'],'responsive overrides');
   const overrides={};for(const [key,s] of Object.entries(node.overrides))overrides[key]=cleanStyle(s);
   if(!Array.isArray(node.children)||(!containers.has(node.type)&&node.children.length))fail('children');
-  return {id:node.id,type:node.type,name:node.name,text:node.text,assetId:node.assetId,alt:node.alt,hidden:node.hidden,locked:node.locked,style:cleanStyle(node.style,true),overrides,children:node.children.map(n=>visit(n,depth+1))};
+  return {id:node.id,type:node.type,name:node.name,text:node.text,assetId:node.assetId,alt:node.alt,hidden:node.hidden,locked:node.locked,style:cleanStyle(node.style,true),overrides,...(node.motion==null?{}:{motion:validateMotion(node.motion)}),children:node.children.map(n=>visit(n,depth+1))};
  }
  const result={schemaVersion:1,nodes:value.nodes.map(n=>visit(n,0))};
  if(new TextEncoder().encode(JSON.stringify(result)).length>220000)fail('document byte size');
@@ -83,6 +84,8 @@ export function command(document,action){
   else if(action.type==='property'){
    if(!['name','text','assetId','alt'].includes(action.key))fail('property');
    node[action.key]=action.value;
+  }else if(action.type==='motion'){
+   const motion=validateMotion(action.value);if(motion===null)delete node.motion;else node.motion=motion;
   }else if(action.type==='style'){
    if(!devices.includes(action.device)||!Object.hasOwn(styleRules,action.key)||!styleRules[action.key](action.value))fail('style command');
    if(action.device==='desktop')node.style[action.key]=action.value;

@@ -60,11 +60,12 @@ const plannedDetails={
  'installed-plugins':['Installation registry and version compatibility.','Capability-based permissions and revocation.','No external plugin code execution until a sandbox exists.'],
  'developer-studio':['Manifest schema and typed extension commands.','Isolated execution with least-privilege access.','Review, testing, versioning and activity records.']
 };
+import {plugins as motionPlugins} from '../atelier/motion.js';
 const pluginIdeas=[
  ['Color Studio','Extract palettes and compose color relationships.'],
  ['Typography Lab','Typography pairing, styles and text treatment.'],
  ['Image Studio','Crop, masks, filters and image treatments.'],
- ['Motion Effects','Dissolves, reveals and staggered web animation.'],
+
  ['Audio Visualizer','Waveform and frequency-based visual effects.'],
  ['Notion Content','Insert approved mapped source content.'],
  ['Layout Library','Reusable grids, sections and compositions.'],
@@ -110,10 +111,12 @@ export async function renderCreativeDestination(root,key,snapshot,session,naviga
   card.append(note(key==='future-chapters'?'The existing chronology is Fall → Winter → Spring → Summer. No future chapter creation or activation is enabled.':'Only Fall is currently configured. No historical chapter releases exist in the current public registry. Historical archive access remains unavailable when revisiting an old season.'));
   card.append(button('Open active chapter',()=>navigate('seasons'),true));root.append(card);return;
  }
- if(key==='plugins'){
-  const card=section('Plugin Library','Proposed extensions');
-  card.append(note('These are planned first-party capabilities, not installed plugins. External Framer and Canva plugins are not automatically compatible. Installation and execution remain disabled.'));
-  card.append(table(['Plugin','Purpose','Availability'],pluginIdeas,(p,i)=>[p[0],p[1],'Planned'][i]));
+ if(key==='plugins'||key==='installed-plugins'){
+  const card=section(key==='plugins'?'Plugin Library':'Installed Plugins','Built-in extensions');
+  card.append(note('Three built-in motion extensions are included in Atelier. Select a document layer, then open Plugins or the Motion inspector. External plugin installation is not enabled.'));
+  const rows=[...motionPlugins.map(p=>[p.name,p.description,'Built in · '+p.version]),...(key==='plugins'?pluginIdeas.map(p=>[...p,'Planned']):[])];
+  card.append(table(['Plugin','Purpose','Availability'],rows,(p,i)=>p[i]));
+  card.append(button('Open Atelier',()=>navigate('atelier')));
   card.append(button('Installed Plugins',()=>navigate('installed-plugins'),true),button('Developer Studio',()=>navigate('developer-studio'),true));root.append(card);return;
  }
  const card=section(item.label,'Planned capability');
