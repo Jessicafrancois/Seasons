@@ -21,7 +21,7 @@ import {studioCan,studioCanSeeRecord} from './server/studio-permissions.js';
 const root=resolve(import.meta.dirname,'public');
 const studioRoot=resolve(import.meta.dirname,'private/studio');
 const types={'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.json':'application/json; charset=utf-8','.webp':'image/webp','.mp3':'audio/mpeg','.png':'image/png','.jpeg':'image/jpeg','.woff2':'font/woff2','.webmanifest':'application/manifest+json'};
-const studioAssets=new Set(['/app.js','/components/ui.js','/components/creative-navigation.js','/pages/atelier.js','/atelier/model.js','/atelier/motion.js','/atelier/playback.js','/atelier/editor.js','/pages/workspace.js','/pages/credential-setup.js','/pages/notion-sources.js','/pages/notion-mappings.js','/pages/creative.js','/pages/inquiry-center.js','/pages/opportunities.js','/editor/opening.js','/styles/studio.css','/styles/opportunities.css','/styles/inquiry-center.css']);
+const studioAssets=new Set(['/app.js','/components/ui.js','/components/creative-navigation.js','/pages/atelier.js','/atelier/model.js','/atelier/motion.js','/atelier/plugin-registry.js','/atelier/playback.js','/atelier/editor.js','/pages/workspace.js','/pages/credential-setup.js','/pages/notion-sources.js','/pages/notion-mappings.js','/pages/creative.js','/pages/inquiry-center.js','/pages/opportunities.js','/editor/opening.js','/styles/studio.css','/styles/opportunities.css','/styles/inquiry-center.css']);
 
 function constantEquals(left,right){
  const a=Buffer.from(left),b=Buffer.from(right);
@@ -140,7 +140,7 @@ export async function handleRequest(request,response){
      return json(response,result.status,result.body);
     }catch{return json(response,503,{error:'Source discovery or registration is temporarily unavailable.'})}
    }
-   const atelierRoute=path.match(/^\/studio\/api\/atelier\/(documents|[a-f0-9-]+(?:\/revisions(?:\/[0-9]+)?)?)$/i);
+   const atelierRoute=path.match(/^\/studio\/api\/atelier\/(documents|plugins(?:\/[a-z0-9-]+)?|[a-f0-9-]+(?:\/revisions(?:\/[0-9]+)?)?)$/i);
    if(atelierRoute){
     if(mode!=='secure'||!requireManage(identity.member))return json(response,403,{error:'Access denied'});
     if(!['GET','POST','PUT'].includes(request.method))return json(response,405,{error:'Method not allowed'});

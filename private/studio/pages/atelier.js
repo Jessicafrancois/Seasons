@@ -1,4 +1,4 @@
-import {el,section,button,note,table} from '../components/ui.js';
+import {el,section,button,note,table,field} from '../components/ui.js';
 import {atelierGroups,creativeGroups,allCreativeRoutes,statusLabel} from '../components/creative-navigation.js';
 
 function directory(root,items,navigate){
@@ -60,8 +60,20 @@ const plannedDetails={
  'installed-plugins':['Installation registry and version compatibility.','Capability-based permissions and revocation.','No external plugin code execution until a sandbox exists.'],
  'developer-studio':['Manifest schema and typed extension commands.','Isolated execution with least-privilege access.','Review, testing, versioning and activity records.']
 };
-import {plugins as motionPlugins} from '../atelier/motion.js';
+import {presets} from '../atelier/motion.js';
+import {registry,settingsFor} from '../atelier/plugin-registry.js';
+import {request as atelierRequest} from '../atelier/editor.js';
 const pluginIdeas=[
+ ['Motion','Motion Studio'],
+ ['Theatre.js','Keyframe Studio'],
+ ['Lenis','Scroll Studio'],
+ ['Rive','Interactive Graphics Studio'],
+ ['Konva.js','Graphics Studio'],
+ ['dotLottie','Animated Asset Studio'],
+ ['WaveSurfer.js','Audio Studio'],
+ ['Three.js','Dimensional Studio'],
+ ['Mux','Video Studio'],
+ ['Remotion','Film Composition Studio'],
  ['Color Studio','Extract palettes and compose color relationships.'],
  ['Typography Lab','Typography pairing, styles and text treatment.'],
  ['Image Studio','Crop, masks, filters and image treatments.'],
@@ -113,10 +125,67 @@ export async function renderCreativeDestination(root,key,snapshot,session,naviga
  }
  if(key==='plugins'||key==='installed-plugins'){
   const card=section(key==='plugins'?'Plugin Library':'Installed Plugins','Built-in extensions');
-  card.append(note('Three built-in motion extensions are included in Atelier. Select a document layer, then open Plugins or the Motion inspector. External plugin installation is not enabled.'));
-  const rows=[...motionPlugins.map(p=>[p.name,p.description,'Built in · '+p.version]),...(key==='plugins'?pluginIdeas.map(p=>[...p,'Planned']):[])];
-  card.append(table(['Plugin','Purpose','Availability'],rows,(p,i)=>p[i]));
-  card.append(button('Open Atelier',()=>navigate('atelier')));
+  const search=field('Search plugins','search','',()=>{});
+  search.input.addEventListener('input',renderPlugins);
+  const list=el('div','','stack');
+  const notice=el('p','Loading plugin settings…','muted');
+  notice.setAttribute('role','status');
+  card.append(search.wrap,notice,list);
+  let settings=null;
+  function renderPlugins(){
+   list.replaceChildren();
+   const query=search.input.value.trim().toLowerCase();
+   const matches=(name,description)=>[name,description].some(value=>value.toLowerCase().includes(query));
+   for(const plugin of registry.filter(p=>matches(p.name,p.description))){
+    const detail=el('details','','card stack');
+    detail.append(el('summary',plugin.name),el('p',plugin.description));
+    const config=settingsFor(settings||{},plugin.id);
+    const readiness=!settings?'Settings unavailable':!config.enabled?'Disabled':
+      typeof Element.prototype.animate==='function'?'Enabled · browser runtime available':'Enabled · browser runtime unavailable';
+    detail.append(el('p',readiness+' · v'+plugin.version+' · '+plugin.workspace,'muted'),
+     el('p','Permission: apply motion to layers.'),
+     el('p',plugin.presets.map(id=>presets[id].name).join(', ')));
+    if(settings){
+     const enabled=field('Enabled','checkbox',config.enabled,()=>{});
+     const duration=field('Default duration (ms)','number',config.duration,()=>{});
+     duration.input.min=100;duration.input.max=10000;duration.input.step=1;duration.input.required=true;
+     const save=button('Save settings',async()=>{
+      if(!duration.input.reportValidity())return;
+      save.disabled=true;
+      notice.textContent='Saving '+plugin.name+' settings…';
+      try{
+       const result=await atelierRequest(session,'plugins/'+plugin.id,'PUT',
+        {enabled:enabled.input.checked,duration:Number(duration.input.value)});
+       settings[plugin.id]=result.settings;
+       notice.textContent=plugin.name+' settings saved.';
+       renderPlugins();
+       const updated=list.querySelector('[data-plugin="'+plugin.id+'"]');
+       if(updated){updated.open=true;updated.querySelector('summary').focus()}
+      }catch(error){notice.textContent=error.message}
+      finally{save.disabled=false}
+     },true);
+     detail.dataset.plugin=plugin.id;
+     detail.append(enabled.wrap,duration.wrap,save,button('Open Canvas documents',()=>navigate('editor'),true));
+    }
+    list.append(detail);
+   }
+   if(key==='plugins')for(const [name,description] of pluginIdeas.filter(p=>matches(...p))){
+    const detail=el('details','','card');
+    detail.append(el('summary',name),el('p',description),el('p','Planned','muted'));
+    list.append(detail);
+   }
+   if(!list.childElementCount)list.append(note('No matching plugins.'));
+  }
+  renderPlugins();
+  async function loadSettings(){
+   try{
+    if(!session?.secure)throw Error('Secure Studio access is required to manage plugins.');
+    settings=(await atelierRequest(session,'plugins')).settings;
+    notice.textContent='';
+   }catch(error){notice.textContent=error.message}
+   renderPlugins();
+  }
+  loadSettings();
   card.append(button('Installed Plugins',()=>navigate('installed-plugins'),true),button('Developer Studio',()=>navigate('developer-studio'),true));root.append(card);return;
  }
  const card=section(item.label,'Planned capability');

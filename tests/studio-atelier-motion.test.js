@@ -6,7 +6,7 @@ test('motion presets are bounded and persist with document commands',()=>{
  let d=command(emptyDocument(),{type:'insert',nodeType:'heading',newId:'a'});
  const before=structuredClone(d);
  d=command(d,{type:'motion',id:'a',value:defaultMotion('rise')});
- assert.deepEqual(d.nodes[0].motion,defaultMotion('rise'));
+ assert.deepEqual(d.nodes[0].motion,{...defaultMotion('rise'),pluginId:'motion-effects'});
  assert.deepEqual(validateDocument(d),d);
  assert.deepEqual(command(d,{type:'motion',id:'a',value:null}),before);
  assert.throws(()=>validateMotion({...defaultMotion(),duration:0}));

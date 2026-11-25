@@ -1,3 +1,4 @@
+import {getPlugin,pluginSettings,settingsFor} from '../private/studio/atelier/plugin-registry.js';
 import {randomUUID} from 'node:crypto';
 import {kinds,validateDocument,emptyDocument,seedFromFields} from '../private/studio/atelier/model.js';
 import {listCreativeDrafts} from './studio-creative-drafts.js';
@@ -19,8 +20,45 @@ async function owned(id,identity){
  if(!uuid(id))return null;
  return (await db(docs,'GET','?id=eq.'+id+'&'+ownerFilter(identity.id)+'&select=id,name,kind,revision,document,updated_at'))[0]||null;
 }
+const pluginTable='seasons_atelier_plugin_settings';
+async function readSettings(identity){
+ const rows=await db(pluginTable,'GET','?'+ownerFilter(identity.id)+'&select=plugin_id,enabled,duration');
+ return Object.fromEntries(rows.filter(row=>getPlugin(row.plugin_id))
+  .map(row=>[row.plugin_id,pluginSettings({enabled:row.enabled,duration:row.duration})]));
+}
+export function changedPluginEffects(before,after){
+ const previous=new Map();
+ const changed=new Set();
+ function visit(nodes,locked,callback){
+  for(const node of nodes){
+   const effectiveLock=locked||node.locked;
+   callback(node,effectiveLock);
+   visit(node.children,effectiveLock,callback);
+  }
+ }
+ visit(before.nodes,false,(node,locked)=>previous.set(node.id,{motion:node.motion,locked}));
+ visit(after.nodes,false,node=>{
+  const prior=previous.get(node.id);
+  if(JSON.stringify(node.motion)===JSON.stringify(prior?.motion))return;
+  if(prior?.locked)throw Error('Cannot change an effect on a locked layer');
+  if(node.motion)changed.add(node.motion.pluginId);
+ });
+ return changed;
+}
 export async function atelierRequest(method,route,input,identity){
  if(!identity?.id)return failure(403,'Access denied');
+ if(route==='plugins'&&method==='GET')return result({settings:await readSettings(identity)});
+ if(route==='plugins'||route.startsWith('plugins/')){
+  if(method!=='PUT'||route==='plugins')return failure(405,'Method not allowed');
+  const id=route.slice('plugins/'.length);
+  if(!getPlugin(id))return failure(404,'Plugin not found');
+  let settings;
+  try{settings=pluginSettings(input)}catch(error){return failure(422,error.message)}
+  await db(pluginTable,'POST','?on_conflict=owner_id,plugin_id',
+   {owner_id:identity.id,plugin_id:id,...settings},'resolution=merge-duplicates,return=representation');
+  return result({id,settings});
+ }
+
  if(route==='documents'){
   if(method==='GET'){
    const rows=await db(docs,'GET','?'+ownerFilter(identity.id)+'&select=id,name,kind,revision,updated_at&order=updated_at.desc&limit=100');
@@ -57,7 +95,23 @@ export async function atelierRequest(method,route,input,identity){
  if(method!=='PUT')return failure(405,'Method not allowed');
  if(!goodName(input?.name)||!Number.isSafeInteger(input.revision)||input.revision<1)return failure(422,'Invalid name or revision');
  if(row.revision!==input.revision)return failure(409,'A newer revision exists. Reopen the document before saving.');
- let document;try{document=validateDocument(input.document)}catch(e){return failure(422,e.message)}
+ let document;
+ try{document=validateDocument(input.document)}catch(e){return failure(422,e.message)}
+ let restoring=false;
+ if(Number.isSafeInteger(input.restoreFrom)&&input.restoreFrom>=1&&input.restoreFrom<=row.revision){
+  const [saved]=await db(revs,'GET','?document_id=eq.'+id+'&revision=eq.'+input.restoreFrom+'&select=document,name');
+  restoring=Boolean(saved&&saved.name===input.name.trim()&&
+   JSON.stringify(validateDocument(saved.document))===JSON.stringify(document));
+ }
+ if(!restoring){
+  let changed;
+  try{changed=changedPluginEffects(validateDocument(row.document),document)}
+  catch(e){return failure(422,e.message)}
+  if(changed.size){
+   const settings=await readSettings(identity);
+   for(const id of changed)if(!settingsFor(settings,id).enabled)return failure(422,'Enable '+getPlugin(id).name+' before saving new effects.');
+  }
+ }
  const rows=await db(docs,'PATCH','?id=eq.'+id+'&'+ownerFilter(identity.id)+'&revision=eq.'+input.revision,{name:input.name.trim(),document,revision:input.revision+1,updated_at:new Date().toISOString()},'return=representation');
  return rows.length===1?result(safeRow(rows[0])):failure(409,'A newer revision exists. Reopen the document before saving.');
 }

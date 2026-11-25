@@ -1,5 +1,6 @@
 // Versioned, deterministic document model shared by editor and server.
-import {validateMotion} from './motion.js';
+import {validatePluginMotion} from './plugin-registry.js';
+export const documentSchemaVersion=2;
 export const kinds=['page','section','component','editorial','experience','scene','moodboard','storyboard','experiment'];
 export const types=['frame','stack','grid','heading','paragraph','quote','list','image','video','audio','button','shape','divider'];
 export const containers=new Set(['frame','stack','grid']);
@@ -21,7 +22,7 @@ function exact(value,keys,label){if(!obj(value)||Object.keys(value).some(k=>!key
 function cleanStyle(s,complete=false){exact(s,Object.keys(styleRules),'style');const result={};for(const [key,value] of Object.entries(s)){if(!styleRules[key](value))fail(key);result[key]=value}return complete?{...styleDefaults,...result}:result}
 export function validateDocument(value){
  exact(value,['schemaVersion','nodes'],'document');
- if(value.schemaVersion!==1||!Array.isArray(value.nodes))fail('document version or nodes');
+ if(![1,documentSchemaVersion].includes(value.schemaVersion)||!Array.isArray(value.nodes))fail('document version or nodes');
  const ids=new Set();let count=0;
  function visit(node,depth){
   if(++count>150||depth>10)fail('document size or nesting');
@@ -32,9 +33,9 @@ export function validateDocument(value){
   exact(node.overrides,['tablet','mobile'],'responsive overrides');
   const overrides={};for(const [key,s] of Object.entries(node.overrides))overrides[key]=cleanStyle(s);
   if(!Array.isArray(node.children)||(!containers.has(node.type)&&node.children.length))fail('children');
-  return {id:node.id,type:node.type,name:node.name,text:node.text,assetId:node.assetId,alt:node.alt,hidden:node.hidden,locked:node.locked,style:cleanStyle(node.style,true),overrides,...(node.motion==null?{}:{motion:validateMotion(node.motion)}),children:node.children.map(n=>visit(n,depth+1))};
+  return {id:node.id,type:node.type,name:node.name,text:node.text,assetId:node.assetId,alt:node.alt,hidden:node.hidden,locked:node.locked,style:cleanStyle(node.style,true),overrides,...(node.motion==null?{}:{motion:validatePluginMotion(node.motion,value.schemaVersion===1)}),children:node.children.map(n=>visit(n,depth+1))};
  }
- const result={schemaVersion:1,nodes:value.nodes.map(n=>visit(n,0))};
+ const result={schemaVersion:documentSchemaVersion,nodes:value.nodes.map(n=>visit(n,0))};
  if(new TextEncoder().encode(JSON.stringify(result)).length>220000)fail('document byte size');
  return result;
 }
@@ -85,7 +86,7 @@ export function command(document,action){
    if(!['name','text','assetId','alt'].includes(action.key))fail('property');
    node[action.key]=action.value;
   }else if(action.type==='motion'){
-   const motion=validateMotion(action.value);if(motion===null)delete node.motion;else node.motion=motion;
+   const motion=action.value===null?null:validatePluginMotion(action.value,true);if(motion===null)delete node.motion;else node.motion=motion;
   }else if(action.type==='style'){
    if(!devices.includes(action.device)||!Object.hasOwn(styleRules,action.key)||!styleRules[action.key](action.value))fail('style command');
    if(action.device==='desktop')node.style[action.key]=action.value;
@@ -97,12 +98,12 @@ export function command(document,action){
  }
  return validateDocument(next);
 }
-export const emptyDocument=()=>({schemaVersion:1,nodes:[]});
+export const emptyDocument=()=>({schemaVersion:documentSchemaVersion,nodes:[]});
 export function seedFromFields(fields,values){
  const nodes=[];let n=0;
  for(const f of fields){
   if(typeof values[f.key]!=='string'||!values[f.key].trim())continue;
   const node=createNode(f.key==='title'?'heading':f.key==='quote'?'quote':'paragraph','seed-'+(++n));node.name=f.label;node.text=values[f.key].slice(0,8000);nodes.push(node);
  }
- return validateDocument({schemaVersion:1,nodes});
+ return validateDocument({schemaVersion:documentSchemaVersion,nodes});
 }
